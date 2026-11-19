@@ -2,7 +2,7 @@
   "assets": [
     {
       "encoding": {
-        "file": "G:\\My Drive\\stiker-dev\\client\\.dart_tool\\hooks_runner\\shared\\sqlite3\\build\\download-e684ef86\\libsqlite3.so",
+        "file": "C:\\stiker-dev\\client\\.dart_tool\\hooks_runner\\shared\\sqlite3\\build\\download-e684ef86\\libsqlite3.so",
         "id": "package:sqlite3/src/ffi/libsqlite3.g.dart",
         "link_mode": {
           "type": "dynamic_loading_bundle"
@@ -13,5 +13,5 @@
   ],
   "assets_for_linking": {},
   "status": "success",
-  "timestamp": "2026-11-19 09:31:58.000"
+  "timestamp": "2026-11-19 10:23:49.000"
 }
