@@ -1,0 +1,41 @@
+{
+  "cid": "7708394712596972308",
+  "aweme_id": "7708356144804236564",
+  "text": "ngajak ribut kamu? 🗿",
+  "create_time": 1731600000,
+  "digg_count": 88,
+  "status": 1,
+  "user": {
+    "uid": "7435664412436120631",
+    "nickname": "crazyolshop1",
+    "unique_id": "crazyolshop1",
+    "avatar_thumb": {
+      "uri": "tos-maliva-avt-0068/7435664412436120631.webp",
+      "url_list": [
+        "https://p16-sign-va.tiktokcdn.com/tos-maliva-avt-0068/7435664412436120631.webp?x-expires=1731772800&x-signature=..."
+      ]
+    }
+  },
+  "cmt_sticker_struct": {
+    "sticker_id": "7421890123456789012",
+    "sticker_type": 2,
+    "static_url": {
+      "uri": "tos-maliva-i-photomode-us/prabowo_red_shirt_static.webp",
+      "url_list": [
+        "https://p16-sign-useastdict.tiktokcdn.com/tos-maliva-i-photomode-us/prabowo_red_shirt_static.webp?x-expires=1731772800&x-signature=...",
+        "https://p19-sign-useastdict.tiktokcdn.com/tos-maliva-i-photomode-us/prabowo_red_shirt_static.webp?x-expires=1731772800&x-signature=..."
+      ],
+      "width": 300,
+      "height": 300
+    },
+    "animated_url": {
+      "uri": "tos-maliva-i-photomode-us/prabowo_red_shirt_animated.awebp",
+      "url_list": [
+        "https://p16-sign-useastdict.tiktokcdn.com/tos-maliva-i-photomode-us/prabowo_red_shirt_animated.awebp?x-expires=1731772800&x-signature=...",
+        "https://p19-sign-useastdict.tiktokcdn.com/tos-maliva-i-photomode-us/prabowo_red_shirt_animated.awebp?x-expires=1731772800&x-signature=..."
+      ],
+      "width": 300,
+      "height": 300
+    }
+  }
+}

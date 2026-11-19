@@ -1,0 +1,14 @@
+{
+  "endpoint": "https://api.scrapesocial.ai/v1/tiktok/video/comments",
+  "method": "GET",
+  "tested_at": "2026-11-17T10:15:40+08:00",
+  "http_status": 401,
+  "response_headers": {
+    "content-type": "application/json; charset=utf-8"
+  },
+  "response_body": {
+    "success": false,
+    "message": "Invalid API key"
+  },
+  "conclusion": "Endpoint is active and enforces x-api-key authentication."
+}
