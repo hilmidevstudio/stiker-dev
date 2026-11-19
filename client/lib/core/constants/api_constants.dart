@@ -7,8 +7,12 @@ class ApiConstants {
   static const String defaultAndroidEmulatorBaseUrl = 'http://10.0.2.2:8000';
   static const String defaultDesktopBaseUrl = 'http://127.0.0.1:8000';
 
-  /// Active base URL (defaults to emulator, can be configured at runtime)
-  static String activeBaseUrl = defaultDesktopBaseUrl;
+  /// Cloud backend URL (Railway production)
+  static const String railwayBaseUrl =
+      'https://web-production-96c4e94f.up.railway.app';
+
+  /// Active base URL — points to Railway cloud (production)
+  static String activeBaseUrl = railwayBaseUrl;
 
   /// Endpoints
   static const String healthEndpoint = '/health';
