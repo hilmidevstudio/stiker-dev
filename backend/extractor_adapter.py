@@ -78,45 +78,68 @@ class ExtractorAdapter(ABC):
 
     def parse_sticker(self, comment_dict: Dict[str, Any]) -> Optional[StickerMediaResponse]:
         """
-        Extracts clean sticker metadata from TikTok's internal cmt_sticker_struct.
+        Extracts clean sticker metadata from TikTok's internal cmt_sticker_struct or comment_pics.
+        Handles both direct url_list and nested resolution objects (high_resolution_url, etc.).
         """
         sticker_struct = comment_dict.get("cmt_sticker_struct")
         if not sticker_struct or not isinstance(sticker_struct, dict):
+            # Check comment_pics (photo replies) as fallback
+            pics = comment_dict.get("comment_pics")
+            if pics and isinstance(pics, list) and len(pics) > 0:
+                pic = pics[0]
+                urls = pic.get("url_list", []) if isinstance(pic, dict) else []
+                if urls:
+                    pic_url = urls[0]
+                    return StickerMediaResponse(
+                        sticker_id=str(pic.get("uri") or comment_dict.get("cid", "")),
+                        sticker_type=1,
+                        is_animated=False,
+                        format="webp",
+                        media_url=pic_url,
+                        static_url=pic_url,
+                        animated_url=None,
+                        width=pic.get("width", 512),
+                        height=pic.get("height", 512)
+                    )
             return None
 
-        sticker_id = str(sticker_struct.get("sticker_id", ""))
+        sticker_id = str(sticker_struct.get("sticker_id") or sticker_struct.get("id") or "")
         sticker_type = int(sticker_struct.get("sticker_type", 1))
 
-        # Extract Static URL
-        static_url = None
-        static_obj = sticker_struct.get("static_url")
-        if isinstance(static_obj, dict):
-            url_list = static_obj.get("url_list", [])
-            if url_list and isinstance(url_list, list):
-                static_url = url_list[0]
+        def _extract_url_and_dims(obj: Any) -> Tuple[Optional[str], Optional[int], Optional[int]]:
+            if not isinstance(obj, dict):
+                return None, None, None
+            
+            # Check direct url_list first
+            url_list = obj.get("url_list")
+            if isinstance(url_list, list) and len(url_list) > 0:
+                return url_list[0], obj.get("width"), obj.get("height")
 
-        # Extract Animated URL
-        animated_url = None
-        animated_obj = sticker_struct.get("animated_url")
-        if isinstance(animated_obj, dict):
-            url_list = animated_obj.get("url_list", [])
-            if url_list and isinstance(url_list, list):
-                animated_url = url_list[0]
+            # Check resolution sub-objects (high, mid, low)
+            for res_key in ["high_resolution_url", "mid_resolution_url", "low_resolution_url"]:
+                res_obj = obj.get(res_key)
+                if isinstance(res_obj, dict):
+                    nested_urls = res_obj.get("url_list")
+                    if isinstance(nested_urls, list) and len(nested_urls) > 0:
+                        w = res_obj.get("width") or obj.get("width")
+                        h = res_obj.get("height") or obj.get("height")
+                        return nested_urls[0], w, h
 
-        is_animated = bool(animated_url) or sticker_type == 2
+            return None, None, None
 
-        # Extract Dimensions
-        width = None
-        height = None
-        if static_obj and isinstance(static_obj, dict):
-            width = static_obj.get("width")
-            height = static_obj.get("height")
-        elif animated_obj and isinstance(animated_obj, dict):
-            width = animated_obj.get("width")
-            height = animated_obj.get("height")
+        # Extract Static URL and Dimensions
+        static_url, s_w, s_h = _extract_url_and_dims(sticker_struct.get("static_url"))
+
+        # Extract Animated URL and Dimensions
+        animated_url, a_w, a_h = _extract_url_and_dims(sticker_struct.get("animated_url"))
+
+        is_animated = bool(animated_url) or sticker_type in (2, 14)
+
+        width = a_w or s_w or 512
+        height = a_h or s_h or 512
 
         # Determine best direct media URL
-        media_url = animated_url if (is_animated and animated_url) else (static_url or "")
+        media_url = (animated_url if (is_animated and animated_url) else static_url) or ""
         format_type = "awebp" if is_animated else "webp"
 
         return StickerMediaResponse(
@@ -281,14 +304,14 @@ class MockExtractorAdapter(ExtractorAdapter):
                     "sticker_type": 2,
                     "static_url": {
                         "url_list": [
-                            "https://p16-sign-useastdict.tiktokcdn.com/tos-maliva-i-photomode-us/prabowo_static.webp"
+                            "http://127.0.0.1:8000/demo/prabowo_static.webp"
                         ],
                         "width": 300,
                         "height": 300
                     },
                     "animated_url": {
                         "url_list": [
-                            "https://p16-sign-useastdict.tiktokcdn.com/tos-maliva-i-photomode-us/prabowo_animated.awebp"
+                            "http://127.0.0.1:8000/demo/prabowo_animated.awebp"
                         ],
                         "width": 300,
                         "height": 300
@@ -327,6 +350,49 @@ class MockExtractorAdapter(ExtractorAdapter):
         self, comment_id: str, video_url: str, cursor: int = 0
     ) -> Dict[str, Any]:
         matching = [c for c in self.fixtures if str(c.get("cid")) == str(comment_id)]
+        if not matching and str(comment_id) != "9999999999999999999":
+            # Dynamic fallback in development/demo mode so developers can test arbitrary live TikTok links
+            synthesized = {
+                "cid": str(comment_id),
+                "aweme_id": "7709334362966672148",
+                "text": "Stiker komentar TikTok 🗿",
+                "create_time": 1731600000,
+                "digg_count": 55,
+                "user": {
+                    "uid": "7435664412436120631",
+                    "nickname": "TikTok User",
+                    "unique_id": "tiktok.creator",
+                    "avatar_thumb": {
+                        "url_list": [
+                            "https://p16-sign-va.tiktokcdn.com/tos-maliva-avt-0068/7435664412436120631.webp"
+                        ]
+                    }
+                },
+                "cmt_sticker_struct": {
+                    "sticker_id": f"sticker_{comment_id}",
+                    "sticker_type": 2,
+                    "static_url": {
+                        "url_list": [
+                            "http://127.0.0.1:8000/demo/prabowo_static.webp"
+                        ],
+                        "width": 300,
+                        "height": 300
+                    },
+                    "animated_url": {
+                        "url_list": [
+                            "http://127.0.0.1:8000/demo/prabowo_animated.awebp"
+                        ],
+                        "width": 300,
+                        "height": 300
+                    }
+                }
+            }
+            return {
+                "success": True,
+                "has_more": False,
+                "cursor": None,
+                "comments": [synthesized]
+            }
         return {
             "success": True,
             "has_more": False,

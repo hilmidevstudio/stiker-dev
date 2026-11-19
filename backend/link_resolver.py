@@ -70,8 +70,8 @@ class TikTokLinkResolver:
     URL_FINDER_REGEX = re.compile(r"(https?://[^\s\"'<>]+)")
 
     DEFAULT_USER_AGENT = (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) "
+        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1"
     )
 
     def __init__(self, timeout_seconds: float = 10.0, user_agent: Optional[str] = None):
@@ -81,11 +81,17 @@ class TikTokLinkResolver:
     def extract_url(self, raw_text: str) -> str:
         """
         Extracts the first HTTP/HTTPS URL from freeform text, stripping surrounding noise.
+        Automatically normalizes missing protocols or truncated schemes (e.g. 'vt.tiktok.com' or 's://...').
         """
         if not raw_text or not raw_text.strip():
             raise InvalidUrlException("Empty input string provided.")
 
-        match = self.URL_FINDER_REGEX.search(raw_text)
+        cleaned = raw_text.strip()
+        if not cleaned.startswith("http://") and not cleaned.startswith("https://"):
+            if "tiktok.com" in cleaned:
+                cleaned = "https://" + re.sub(r"^[a-zA-Z0-9]*://", "", cleaned).lstrip("/")
+
+        match = self.URL_FINDER_REGEX.search(cleaned)
         if not match:
             raise InvalidUrlException(f"No HTTP or HTTPS URL detected in input: '{raw_text[:60]}'")
 
@@ -163,9 +169,17 @@ class TikTokLinkResolver:
 
         author_id = query_params.get("comment_author_id")
 
+        # Extract authentic creator handle if present in path, else fallback to @tiktok
+        path_parts = parsed.path.strip("/").split("/")
+        author_handle = next((p for p in path_parts if p.startswith("@")), None)
+        if author_handle:
+            clean_canonical_url = f"https://www.tiktok.com/{author_handle}/video/{video_id}"
+        else:
+            clean_canonical_url = f"https://www.tiktok.com/@tiktok/video/{video_id}"
+
         return ResolvedTarget(
             original_input=raw_input,
-            canonical_url=canonical_url,
+            canonical_url=clean_canonical_url,
             video_id=video_id,
             comment_id=comment_id,
             author_id=author_id,

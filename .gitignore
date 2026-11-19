@@ -16,8 +16,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -38,6 +38,15 @@ downloads/
 temp/
 storage/media/
 packs/
+*.ps1
+
+# Flutter & Gradle
+.dart_tool/
+client/.dart_tool/
+client/build/
+.gradle/
+client/android/.gradle/
+client/android/app/build/
 
 # OS specific
 Thumbs.db
