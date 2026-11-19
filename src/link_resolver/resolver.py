@@ -19,6 +19,7 @@ class ResolvedTarget:
     author_id: Optional[str]
     is_comment_link: bool
     raw_query_params: Dict[str, str]
+    post_type: str = "video"
 
 
 class LinkResolverError(Exception):
@@ -53,8 +54,8 @@ class TikTokLinkResolver:
         "m.tiktok.com",
     }
 
-    # Matches standard video paths: /@user/video/7708356144804236564 or /v/7708356144804236564.html
-    VIDEO_PATH_REGEX = re.compile(r"/video/(\d+)|/v/(\d+)")
+    # TikTok comment shares can point to video posts or photo-mode posts.
+    POST_PATH_REGEX = re.compile(r"/(?P<kind>video|photo|v)/(?P<id>\d+)")
 
     URL_EXTRACT_REGEX = re.compile(r"(https?://[^\s\"'<>]+)")
 
@@ -71,29 +72,23 @@ class TikTokLinkResolver:
         return match.group(1).strip()
 
     def resolve_redirect(self, url: str, timeout: float = 10.0) -> str:
-        """
-        Follows HTTP redirects to resolve short links (e.g. vt.tiktok.com).
-        Returns the destination canonical URL.
-        """
+        """Resolve the short link using GET because some TikTok hosts mishandle HEAD."""
         req = urllib.request.Request(
             url,
-            headers={"User-Agent": self.user_agent},
-            method="HEAD"
+            headers={"User-Agent": self.user_agent, "Range": "bytes=0-0"},
+            method="GET",
         )
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 return resp.geturl()
         except urllib.error.HTTPError as e:
-            # 301/302 redirects with HEAD may sometimes return redirect location in headers
-            if "Location" in e.headers:
-                return e.headers["Location"]
-            # Fallback to GET if HEAD failed
-            req.method = "GET"
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                return resp.geturl()
+            # urllib follows normal redirects automatically; an HTTPError is not a
+            # valid reason to silently continue parsing the original short URL.
+            if e.geturl() and e.geturl() != url:
+                return e.geturl()
+            raise LinkResolverError(f"Could not resolve TikTok short URL (HTTP {e.code}).") from e
         except Exception as e:
-            # If network resolution fails, return original url and try parsing it
-            return url
+            raise LinkResolverError(f"Could not resolve TikTok short URL ({type(e).__name__}).") from e
 
     def parse_url(self, raw_input: str, follow_redirects: bool = True) -> ResolvedTarget:
         """
@@ -112,18 +107,20 @@ class TikTokLinkResolver:
 
         query_params = {k: v[0] for k, v in urllib.parse.parse_qs(parsed.query).items()}
 
-        # Extract Video ID: from path or query params (share_item_id)
-        video_id = None
-        path_match = self.VIDEO_PATH_REGEX.search(parsed.path)
+        # Extract TikTok post ID and preserve whether this is a /video/ or /photo/ post.
+        post_id = None
+        post_type = "photo" if query_params.get("aweme_type") == "150" else "video"
+        path_match = self.POST_PATH_REGEX.search(parsed.path)
         if path_match:
-            video_id = path_match.group(1) or path_match.group(2)
-        elif "share_item_id" in query_params:
-            video_id = query_params["share_item_id"]
-        elif "item_id" in query_params:
-            video_id = query_params["item_id"]
+            post_id = path_match.group("id")
+            post_type = "photo" if path_match.group("kind") == "photo" else "video"
+        elif query_params.get("share_item_id", "").isdigit():
+            post_id = query_params["share_item_id"]
+        elif query_params.get("item_id", "").isdigit():
+            post_id = query_params["item_id"]
 
-        if not video_id:
-            raise VideoIdNotFoundError(f"Could not extract Video ID from URL: {target_url}")
+        if not post_id:
+            raise VideoIdNotFoundError(f"Could not extract TikTok post ID from URL: {target_url}")
 
         # Extract Comment ID from query parameters
         comment_id = None
@@ -134,12 +131,17 @@ class TikTokLinkResolver:
 
         author_id = query_params.get("comment_author_id")
 
+        author_handle = next((part for part in parsed.path.strip("/").split("/") if part.startswith("@")), None)
+        canonical_author = author_handle or "@tiktok"
+        canonical_url = f"https://www.tiktok.com/{canonical_author}/{post_type}/{post_id}"
+
         return ResolvedTarget(
             original_input=raw_input,
-            canonical_url=target_url,
-            video_id=video_id,
+            canonical_url=canonical_url,
+            video_id=post_id,
             comment_id=comment_id,
             author_id=author_id,
             is_comment_link=comment_id is not None,
-            raw_query_params=query_params
+            raw_query_params=query_params,
+            post_type=post_type,
         )

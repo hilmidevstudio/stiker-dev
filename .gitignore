@@ -52,3 +52,17 @@ client/android/app/build/
 Thumbs.db
 Desktop.ini
 .DS_Store
+# Machine-specific Android / Flutter files
+client/android/local.properties
+client/.flutter-plugins-dependencies
+client/.dart_tool/
+client/build/
+client/android/.gradle/
+client/android/app/build/
+
+# Android release signing material (never commit)
+client/android/key.properties
+client/android/app/*.jks
+client/android/app/*.keystore
+*.jks
+*.keystore

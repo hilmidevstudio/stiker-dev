@@ -58,6 +58,18 @@ class IntentBridge {
     WhatsAppVariant variant = WhatsAppVariant.whatsApp,
   ]) async {
     try {
+      if (variant == WhatsAppVariant.any) {
+        final personal = await _channel.invokeMethod<bool>(
+          'isPackageInstalled',
+          {'packageName': WhatsAppVariant.whatsApp.packageName},
+        );
+        final business = await _channel.invokeMethod<bool>(
+          'isPackageInstalled',
+          {'packageName': WhatsAppVariant.whatsAppBusiness.packageName},
+        );
+        return (personal ?? false) || (business ?? false);
+      }
+
       final result = await _channel.invokeMethod<bool>(
         'isPackageInstalled',
         {'packageName': variant.packageName},

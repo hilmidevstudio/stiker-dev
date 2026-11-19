@@ -122,16 +122,32 @@ class _PackExportScreenState extends State<PackExportScreen> {
         applicationId: 'com.stickerdrop.app',
       );
 
+      if (success) {
+        // Only mark the pack as exported after the native WhatsApp intent returns success.
+        final items = await _packRepository.getPackItems(pack.id!);
+        for (final item in items) {
+          await _stickerRepository.updateExportStatus(item.stickerId, 'EXPORTED');
+        }
+      }
+
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('WhatsApp import dialog launched for "${pack.name}"!'),
+              content: Text('Sticker pack "${pack.name}" berhasil ditambahkan ke WhatsApp.'),
               backgroundColor: const Color(0xFF25D366),
             ),
           );
         } else {
-          _showWhatsAppNotInstalledDialog();
+          final isInstalled =
+              await _intentBridge.isWhatsAppInstalled(WhatsAppVariant.any);
+          if (isInstalled) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Impor stiker dibatalkan di WhatsApp.')),
+            );
+          } else {
+            _showWhatsAppNotInstalledDialog();
+          }
         }
       }
     } catch (e) {

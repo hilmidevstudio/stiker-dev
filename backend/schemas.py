@@ -3,24 +3,17 @@ Pydantic v2 schemas for the StickerDrop backend service.
 Defines input payloads, clean sticker output responses, and error contracts.
 """
 
-from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field, HttpUrl
+from typing import Optional, Dict, Any
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ResolveAndExtractRequest(BaseModel):
     """Input payload for POST /v1/resolve-and-extract."""
+    model_config = ConfigDict(extra="forbid")
     url: str = Field(
         ...,
         description="TikTok comment short link (e.g. vt.tiktok.com) or canonical comment URL",
         examples=["https://vt.tiktok.com/ZS9f3yqSf57UR-naeU1/"]
-    )
-    download_media: bool = Field(
-        default=False,
-        description="Whether the backend should also download and verify media bytes"
-    )
-    provider: Optional[str] = Field(
-        default=None,
-        description="Optional provider override: 'scrapesocial', 'scrapecreators', or 'mock'"
     )
 
 

@@ -102,7 +102,7 @@ class MainActivity : FlutterActivity() {
             val result = pendingResult
             pendingResult = null
             if (result != null) {
-                result.success(resultCode == RESULT_OK || resultCode == RESULT_CANCELED)
+                result.success(resultCode == RESULT_OK)
             }
         }
     }

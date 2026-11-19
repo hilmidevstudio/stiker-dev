@@ -18,7 +18,15 @@ from backend.main import app
 class TestBackendAPI(unittest.TestCase):
 
     def setUp(self):
+        self._previous_provider = os.environ.get("EXTRACTION_PROVIDER")
+        os.environ["EXTRACTION_PROVIDER"] = "mock"
         self.client = TestClient(app)
+
+    def tearDown(self):
+        if self._previous_provider is None:
+            os.environ.pop("EXTRACTION_PROVIDER", None)
+        else:
+            os.environ["EXTRACTION_PROVIDER"] = self._previous_provider
 
     def test_root_endpoint(self):
         response = self.client.get("/")
@@ -54,10 +62,7 @@ class TestBackendAPI(unittest.TestCase):
             "https://www.tiktok.com/@nyariprompt/video/7708356144804236564"
             "?share_comment_id=7708394712596972308"
         )
-        payload = {
-            "url": url,
-            "provider": "mock"
-        }
+        payload = {"url": url}
         response = self.client.post("/v1/resolve-and-extract", json=payload)
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -84,7 +89,7 @@ class TestBackendAPI(unittest.TestCase):
         )
         response = self.client.get(
             "/v1/resolve-and-extract",
-            params={"url": url, "provider": "mock"}
+            params={"url": url}
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -94,18 +99,26 @@ class TestBackendAPI(unittest.TestCase):
 
     def test_video_link_without_comment_id_error(self):
         url = "https://www.tiktok.com/@nyariprompt/video/7708356144804236564"
-        response = self.client.post("/v1/resolve-and-extract", json={"url": url, "provider": "mock"})
+        response = self.client.post("/v1/resolve-and-extract", json={"url": url})
         self.assertEqual(response.status_code, 422)
         data = response.json()
         self.assertFalse(data["success"])
         self.assertEqual(data["error_code"], "MISSING_COMMENT_ID")
 
     def test_invalid_url_string_error(self):
-        response = self.client.post("/v1/resolve-and-extract", json={"url": "not a valid url", "provider": "mock"})
+        response = self.client.post("/v1/resolve-and-extract", json={"url": "not a valid url"})
         self.assertEqual(response.status_code, 400)
         data = response.json()
         self.assertFalse(data["success"])
         self.assertEqual(data["error_code"], "INVALID_URL")
+
+    def test_public_client_cannot_override_provider(self):
+        response = self.client.post(
+            "/v1/resolve-and-extract",
+            json={"url": "https://www.tiktok.com/@nyariprompt/video/7708356144804236564?share_comment_id=7708394712596972308", "provider": "mock"},
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["error_code"], "VALIDATION_ERROR")
 
     def test_comment_without_sticker_error(self):
         # 7708111111111111111 is in the mock fixture but has NO sticker
@@ -113,7 +126,7 @@ class TestBackendAPI(unittest.TestCase):
             "https://www.tiktok.com/@nyariprompt/video/7708356144804236564"
             "?share_comment_id=7708111111111111111"
         )
-        response = self.client.post("/v1/resolve-and-extract", json={"url": url, "provider": "mock"})
+        response = self.client.post("/v1/resolve-and-extract", json={"url": url})
         self.assertEqual(response.status_code, 404)
         data = response.json()
         self.assertFalse(data["success"])
@@ -125,11 +138,52 @@ class TestBackendAPI(unittest.TestCase):
             "https://www.tiktok.com/@nyariprompt/video/7708356144804236564"
             "?share_comment_id=9999999999999999999"
         )
-        response = self.client.post("/v1/resolve-and-extract", json={"url": url, "provider": "mock"})
+        response = self.client.post("/v1/resolve-and-extract", json={"url": url})
         self.assertEqual(response.status_code, 404)
         data = response.json()
         self.assertFalse(data["success"])
         self.assertEqual(data["error_code"], "COMMENT_NOT_FOUND")
+
+    def test_arbitrary_missing_comment_is_not_synthesized(self):
+        # Any unknown ID must remain a 404; the backend must never create demo metadata.
+        url = (
+            "https://www.tiktok.com/@nyariprompt/video/7708356144804236564"
+            "?share_comment_id=8888888888888888888"
+        )
+        response = self.client.post("/v1/resolve-and-extract", json={"url": url})
+        self.assertEqual(response.status_code, 404)
+        data = response.json()
+        self.assertFalse(data["success"])
+        self.assertEqual(data["error_code"], "COMMENT_NOT_FOUND")
+
+    def test_photo_comment_link_is_not_rewritten_as_video(self):
+        from backend.link_resolver import TikTokLinkResolver
+        import asyncio
+        target = asyncio.run(TikTokLinkResolver().resolve(
+            "https://www.tiktok.com/@aranaarea/photo/7706876060025408788"
+            "?share_comment_id=7709075303109116690&comment_author_id=6919262587071333377&aweme_type=150",
+            follow_redirects=False,
+        ))
+        self.assertEqual(target.post_type, "photo")
+        self.assertEqual(target.video_id, "7706876060025408788")
+        self.assertEqual(target.comment_id, "7709075303109116690")
+        self.assertIn("/photo/7706876060025408788", target.canonical_url)
+
+
+    def test_resolve_link_endpoint_does_not_call_provider(self):
+        url = (
+            "https://www.tiktok.com/@livorwed/photo/7709797914675121428"
+            "?share_comment_id=7709899214972928776&aweme_type=150"
+        )
+        response = self.client.post("/v1/resolve-link", json={"url": url})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["success"])
+        self.assertFalse(data["provider_called"])
+        self.assertEqual(data["post_type"], "photo")
+        self.assertEqual(data["comment_id"], "7709899214972928776")
+        self.assertIn("/photo/7709797914675121428", data["canonical_url"])
+
 
 
 if __name__ == "__main__":

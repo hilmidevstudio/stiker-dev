@@ -20,6 +20,7 @@ class ResolvedTarget:
     author_id: Optional[str]
     is_comment_link: bool
     query_params: Dict[str, str]
+    post_type: str = "video"  # TikTok may share either /video/ or /photo/ posts.
 
 
 # Domain Exceptions
@@ -65,8 +66,8 @@ class TikTokLinkResolver:
         "m.tiktok.com",
     }
 
-    # Matches /video/7708356144804236564 or /v/7708356144804236564.html
-    VIDEO_PATH_REGEX = re.compile(r"/video/(\d+)|/v/(\d+)")
+    # TikTok share links can resolve to both video and photo-mode posts.
+    POST_PATH_REGEX = re.compile(r"/(?P<kind>video|photo|v)/(?P<id>\d+)")
     URL_FINDER_REGEX = re.compile(r"(https?://[^\s\"'<>]+)")
 
     DEFAULT_USER_AGENT = (
@@ -98,31 +99,45 @@ class TikTokLinkResolver:
         return match.group(1).strip().rstrip("'\">),.;]")
 
     async def resolve_short_url(self, url: str) -> str:
-        """
-        Asynchronously follows HTTP redirects (301/302) to discover the canonical destination URL.
-        """
-        headers = {"User-Agent": self.user_agent}
+        """Resolve TikTok short links with GET (not HEAD).
 
+        TikTok's short-link service can treat HEAD differently from GET. Stream the
+        response so the final landing page body is not downloaded unnecessarily.
+        """
+        headers = {
+            "User-Agent": self.user_agent,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        }
         try:
             async with httpx.AsyncClient(
                 follow_redirects=True,
                 timeout=self.timeout,
-                headers=headers
+                headers=headers,
             ) as client:
-                response = await client.head(url)
-                # If HEAD fails or is not supported by edge server, try GET
-                if response.status_code >= 400:
-                    response = await client.get(url)
-                return str(response.url)
+                async with client.stream("GET", url) as response:
+                    final_url = str(response.url)
+                    final_host = urllib.parse.urlparse(final_url).netloc.lower()
+                    if final_host in self.SHORT_DOMAINS:
+                        raise LinkResolverException(
+                            "TikTok short link did not resolve to a post URL.",
+                            error_code="SHORT_LINK_UNRESOLVED",
+                            status_code=422,
+                        )
+                    return final_url
+        except LinkResolverException:
+            raise
         except httpx.TimeoutException:
             raise LinkResolverException(
-                "Timed out while resolving short URL redirect. Please check your network or try again.",
+                "Timed out while resolving TikTok short link. Please check your network or try again.",
                 error_code="RESOLUTION_TIMEOUT",
-                status_code=504
+                status_code=504,
             )
         except Exception as e:
-            # If network resolution fails, return original url and attempt parsing
-            return url
+            raise LinkResolverException(
+                f"Could not resolve TikTok short link: {type(e).__name__}",
+                error_code="SHORT_LINK_RESOLUTION_FAILED",
+                status_code=502,
+            )
 
     async def resolve(self, raw_input: str, follow_redirects: bool = True) -> ResolvedTarget:
         """
@@ -144,19 +159,21 @@ class TikTokLinkResolver:
 
         query_params = {k: v[0] for k, v in urllib.parse.parse_qs(parsed.query).items()}
 
-        # 1. Extract Video ID (from path or fallback query parameters)
-        video_id = None
-        path_match = self.VIDEO_PATH_REGEX.search(parsed.path)
+        # 1. Extract the TikTok post ID and distinguish video from photo-mode posts.
+        post_id = None
+        post_type = "photo" if query_params.get("aweme_type") == "150" else "video"
+        path_match = self.POST_PATH_REGEX.search(parsed.path)
         if path_match:
-            video_id = path_match.group(1) or path_match.group(2)
-        elif "share_item_id" in query_params:
-            video_id = query_params["share_item_id"]
-        elif "item_id" in query_params:
-            video_id = query_params["item_id"]
+            post_id = path_match.group("id")
+            post_type = "photo" if path_match.group("kind") == "photo" else "video"
+        elif query_params.get("share_item_id", "").isdigit():
+            post_id = query_params["share_item_id"]
+        elif query_params.get("item_id", "").isdigit():
+            post_id = query_params["item_id"]
 
-        if not video_id:
+        if not post_id:
             raise VideoIdNotFoundException(
-                f"Could not extract a valid TikTok Video ID from resolved URL: {canonical_url}"
+                f"Could not extract a valid TikTok post ID from resolved URL: {canonical_url}"
             )
 
         # 2. Extract Comment ID (from share_comment_id, comment_id, or cid)
@@ -169,20 +186,20 @@ class TikTokLinkResolver:
 
         author_id = query_params.get("comment_author_id")
 
-        # Extract authentic creator handle if present in path, else fallback to @tiktok
+        # Keep the post kind in the canonical URL. Rewriting /photo/ to /video/
+        # changes the resource being requested and can make comment lookups miss.
         path_parts = parsed.path.strip("/").split("/")
         author_handle = next((p for p in path_parts if p.startswith("@")), None)
-        if author_handle:
-            clean_canonical_url = f"https://www.tiktok.com/{author_handle}/video/{video_id}"
-        else:
-            clean_canonical_url = f"https://www.tiktok.com/@tiktok/video/{video_id}"
+        canonical_author = author_handle or "@tiktok"
+        clean_canonical_url = f"https://www.tiktok.com/{canonical_author}/{post_type}/{post_id}"
 
         return ResolvedTarget(
             original_input=raw_input,
             canonical_url=clean_canonical_url,
-            video_id=video_id,
+            video_id=post_id,
             comment_id=comment_id,
             author_id=author_id,
             is_comment_link=comment_id is not None,
-            query_params=query_params
+            query_params=query_params,
+            post_type=post_type,
         )

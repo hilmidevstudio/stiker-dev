@@ -133,13 +133,17 @@ class ExtractorAdapter(ABC):
         # Extract Animated URL and Dimensions
         animated_url, a_w, a_h = _extract_url_and_dims(sticker_struct.get("animated_url"))
 
-        is_animated = bool(animated_url) or sticker_type in (2, 14)
+        # Only label a sticker animated when the provider actually returned an animated asset URL.
+        # Some responses report an animated sticker type but omit animated_url; in that case
+        # use the real static asset instead of serving static bytes with an .awebp extension.
+        is_animated = bool(animated_url)
 
-        width = a_w or s_w or 512
-        height = a_h or s_h or 512
+        width = (a_w if is_animated else s_w) or s_w or a_w or 512
+        height = (a_h if is_animated else s_h) or s_h or a_h or 512
 
-        # Determine best direct media URL
-        media_url = (animated_url if (is_animated and animated_url) else static_url) or ""
+        media_url = (animated_url if is_animated else static_url) or ""
+        if not media_url:
+            return None
         format_type = "awebp" if is_animated else "webp"
 
         return StickerMediaResponse(
@@ -237,7 +241,8 @@ class ScrapeSocialAdapter(ExtractorAdapter):
     async def fetch_comments(
         self, video_url: str, cursor: int = 0, count: int = 50
     ) -> Dict[str, Any]:
-        params = {"url": video_url, "cursor": cursor, "count": count}
+        # ScrapeCreators documents url, cursor and trim; `count` is not a documented query parameter.
+        params = {"url": video_url, "cursor": cursor}
         return await self._get("/v1/tiktok/video/comments", params)
 
     async def fetch_replies(
@@ -252,22 +257,17 @@ class ScrapeCreatorsAdapter(ScrapeSocialAdapter):
     Adapter implementation for ScrapeCreators (api.scrapecreators.com).
     Shares the identical REST routing structure with ScrapeSocial.
     """
-    DEFAULT_API_KEY = "6Ha0XNIDAVVExLEDxfZBubo1azC2"
-
     def __init__(
         self,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         timeout_seconds: float = 20.0
     ):
-        key = (
-            api_key
-            or os.getenv("SCRAPECREATORS_API_KEY")
-            or os.getenv("SCRAPESOCIAL_API_KEY")
-            or self.DEFAULT_API_KEY
-        )
+        # Provider credentials must come from deployment environment, never source code.
+        key = api_key or os.getenv("SCRAPECREATORS_API_KEY")
         url = base_url or os.getenv("SCRAPECREATORS_BASE_URL", "https://api.scrapecreators.com")
         super().__init__(api_key=key, base_url=url, timeout_seconds=timeout_seconds)
+        self._ensure_api_key()
 
     @property
     def provider_name(self) -> str:
@@ -310,14 +310,14 @@ class MockExtractorAdapter(ExtractorAdapter):
                     "sticker_type": 2,
                     "static_url": {
                         "url_list": [
-                            "http://127.0.0.1:8000/demo/prabowo_static.webp"
+                            "https://example.invalid/demo/prabowo_static.webp"
                         ],
                         "width": 300,
                         "height": 300
                     },
                     "animated_url": {
                         "url_list": [
-                            "http://127.0.0.1:8000/demo/prabowo_animated.awebp"
+                            "https://example.invalid/demo/prabowo_animated.awebp"
                         ],
                         "width": 300,
                         "height": 300
@@ -356,49 +356,6 @@ class MockExtractorAdapter(ExtractorAdapter):
         self, comment_id: str, video_url: str, cursor: int = 0
     ) -> Dict[str, Any]:
         matching = [c for c in self.fixtures if str(c.get("cid")) == str(comment_id)]
-        if not matching and str(comment_id) != "9999999999999999999":
-            # Dynamic fallback in development/demo mode so developers can test arbitrary live TikTok links
-            synthesized = {
-                "cid": str(comment_id),
-                "aweme_id": "7709334362966672148",
-                "text": "Stiker komentar TikTok 🗿",
-                "create_time": 1731600000,
-                "digg_count": 55,
-                "user": {
-                    "uid": "7435664412436120631",
-                    "nickname": "TikTok User",
-                    "unique_id": "tiktok.creator",
-                    "avatar_thumb": {
-                        "url_list": [
-                            "https://p16-sign-va.tiktokcdn.com/tos-maliva-avt-0068/7435664412436120631.webp"
-                        ]
-                    }
-                },
-                "cmt_sticker_struct": {
-                    "sticker_id": f"sticker_{comment_id}",
-                    "sticker_type": 2,
-                    "static_url": {
-                        "url_list": [
-                            "http://127.0.0.1:8000/demo/prabowo_static.webp"
-                        ],
-                        "width": 300,
-                        "height": 300
-                    },
-                    "animated_url": {
-                        "url_list": [
-                            "http://127.0.0.1:8000/demo/prabowo_animated.awebp"
-                        ],
-                        "width": 300,
-                        "height": 300
-                    }
-                }
-            }
-            return {
-                "success": True,
-                "has_more": False,
-                "cursor": None,
-                "comments": [synthesized]
-            }
         return {
             "success": True,
             "has_more": False,
@@ -424,7 +381,7 @@ def get_extractor_adapter(provider_name: Optional[str] = None) -> ExtractorAdapt
         # Default priority: ScrapeCreators first (our active provider with credits)
         if os.getenv("SCRAPECREATORS_API_KEY"):
             return ScrapeCreatorsAdapter()
-        elif os.getenv("SCRAPESOCIAL_API_KEY") and not os.getenv("SCRAPESOCIAL_API_KEY", "").startswith("6Ha0"):
+        elif os.getenv("SCRAPESOCIAL_API_KEY"):
             return ScrapeSocialAdapter()
         else:
             # Default to ScrapeCreators

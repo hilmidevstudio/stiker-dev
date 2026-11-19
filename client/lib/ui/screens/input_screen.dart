@@ -118,13 +118,17 @@ class _InputScreenState extends State<InputScreen> {
         sha256: storageResult.sha256,
       );
 
+      final existingByComment =
+          await _stickerRepository.getStickerByCommentId(res.commentId);
+      final existingByMedia =
+          await _stickerRepository.getStickerBySha256(storageResult.sha256);
       final saved = await _stickerRepository.insertSticker(model);
+      final isExisting = existingByComment != null || existingByMedia != null;
 
       // 4. Auto-sync Virtual Packs (ADR-006 & ADR-007)
       final partitioner = VirtualPackPartitioner();
       await partitioner.partitionAndSyncPacks();
 
-      final isExisting = storageResult.isExistingFile || (saved.id != null && saved.id != model.id);
       final msg = isExisting
           ? 'Sticker already in collection! (Deduplication matched ${saved.sourceCommentId})'
           : 'Sticker successfully saved to collection!';

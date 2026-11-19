@@ -60,6 +60,51 @@ class TestTikTokLinkResolver(unittest.TestCase):
         with self.assertRaises(VideoIdNotFoundError):
             self.resolver.parse_url(url, follow_redirects=False)
 
+    def test_parse_photo_comment_url_preserves_photo_route(self):
+        url = (
+            "https://www.tiktok.com/@aranaarea/photo/7706876060025408788"
+            "?share_comment_id=7709075303109116690&comment_author_id=6919262587071333377"
+            "&aweme_type=150"
+        )
+        target = self.resolver.parse_url(url, follow_redirects=False)
+        self.assertEqual(target.video_id, "7706876060025408788")
+        self.assertEqual(target.comment_id, "7709075303109116690")
+        self.assertEqual(target.post_type, "photo")
+        self.assertEqual(
+            target.canonical_url,
+            "https://www.tiktok.com/@aranaarea/photo/7706876060025408788",
+        )
+
+    def test_parse_photo_id_from_share_item_id(self):
+        url = (
+            "https://www.tiktok.com/@alyaaiqii/photo/7709434303888870676"
+            "?share_comment_id=7709970154088579861&aweme_type=150"
+        )
+        target = self.resolver.parse_url(url, follow_redirects=False)
+        self.assertEqual(target.post_type, "photo")
+        self.assertEqual(target.video_id, "7709434303888870676")
+        self.assertEqual(target.comment_id, "7709970154088579861")
+
+
+    def test_all_user_supplied_links_resolve_to_expected_ids_without_provider(self):
+        import json
+        from pathlib import Path
+        corpus_path = Path(__file__).resolve().parents[2] / "research" / "stickerdrop-user-link-corpus-2026-11-20.json"
+        corpus = json.loads(corpus_path.read_text(encoding="utf-8"))
+        self.assertEqual(corpus["input_count"], 21)
+        for item in corpus["items"]:
+            canonical = (
+                f"https://www.tiktok.com/{item['creator']}/{item['post_type']}/{item['post_id']}"
+                f"?share_comment_id={item['comment_id']}&comment_author_id={item['comment_author_id']}"
+                + ("&aweme_type=150" if item["post_type"] == "photo" else "")
+            )
+            target = self.resolver.parse_url(canonical, follow_redirects=False)
+            self.assertEqual(target.video_id, item["post_id"], item["short_url"])
+            self.assertEqual(target.comment_id, item["comment_id"], item["short_url"])
+            self.assertEqual(target.author_id, item["comment_author_id"], item["short_url"])
+            self.assertEqual(target.post_type, item["post_type"], item["short_url"])
+
+
 
 if __name__ == "__main__":
     unittest.main()

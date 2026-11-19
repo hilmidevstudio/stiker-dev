@@ -74,7 +74,7 @@ c:\stiker-dev\
 - **Environment Isolation**: API secrets are strictly loaded from `.env` via `python-dotenv`:
   - `SCRAPESOCIAL_API_KEY`, `SCRAPESOCIAL_BASE_URL`
   - `SCRAPECREATORS_API_KEY`, `SCRAPECREATORS_BASE_URL`
-  - `EXTRACTION_PROVIDER` (determines active provider: `scrapesocial`, `scrapecreators`, or `mock`)
+  - `EXTRACTION_PROVIDER` (server-side selection: `scrapesocial`, `scrapecreators`, or `mock` for local testing only; public clients cannot override it)
 - **Abstract Base Class `ExtractorAdapter`**: Enforces `fetch_comments()` and `fetch_replies()`.
 - **`cmt_sticker_struct` Extraction Logic**:
   - Identifies `sticker_type`: `1` (static) or `2` (animated).
@@ -92,8 +92,9 @@ c:\stiker-dev\
 
 ### 5.1 Request Contracts
 Both `POST` and `GET` are supported at `/v1/resolve-and-extract`:
-- **POST**: Body `{"url": "https://vt.tiktok.com/ZS9f3yqSf57UR-naeU1/", "provider": "mock"}`
-- **GET**: Query `?url=https%3A%2F%2Fvt.tiktok.com%2FZS9f3yqSf57UR-naeU1%2F&provider=mock`
+- **POST**: Body `{"url": "https://vt.tiktok.com/ZS9f3yqSf57UR-naeU1/"}`
+- **GET**: Query `?url=https%3A%2F%2Fvt.tiktok.com%2FZS9f3yqSf57UR-naeU1%2F`
+- For offline tests, set `EXTRACTION_PROVIDER=mock` in the backend process environment; do not expose provider selection to app clients.
 
 ### 5.2 Success Response Schema (HTTP 200)
 ```json

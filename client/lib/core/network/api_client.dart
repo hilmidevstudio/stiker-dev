@@ -41,13 +41,9 @@ class ApiClient {
   /// Request link resolution and sticker extraction
   Future<Map<String, dynamic>> resolveAndExtract({
     required String url,
-    String? provider,
   }) async {
     final uri = Uri.parse('$_baseUrl${ApiConstants.resolveAndExtractEndpoint}');
-    final requestBody = jsonEncode({
-      'url': url,
-      if (provider != null) 'provider': provider,
-    });
+    final requestBody = jsonEncode({'url': url});
 
     try {
       final response = await _httpClient

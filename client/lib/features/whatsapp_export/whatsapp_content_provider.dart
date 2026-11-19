@@ -62,6 +62,8 @@ class WhatsAppContentProvider {
       });
     }
 
+    if (stickersJson.length < 3) return null;
+
     return {
       'identifier': pack.identifier,
       'name': pack.name,
@@ -104,15 +106,18 @@ class WhatsAppContentProvider {
       final fileName = '${sticker.sha256}.$ext';
       final destFile = File(p.join(packDir.path, fileName));
 
-      if (!await destFile.exists()) {
-        final srcFile = storageManager.getFileForRelativePath(sticker.localMediaPath);
-        if (await srcFile.exists()) {
-          await srcFile.copy(destFile.path);
-        }
+      final srcFile = storageManager.getFileForRelativePath(sticker.localMediaPath);
+      if (!await srcFile.exists() || await srcFile.length() == 0) {
+        throw StateError('Sticker source file is missing or empty: ${sticker.id}');
       }
 
-      // Mark sticker as EXPORTED in DB
-      await _stickerRepository.updateExportStatus(sticker.id!, 'EXPORTED');
+      if (!await destFile.exists() || await destFile.length() == 0) {
+        if (await destFile.exists()) await destFile.delete();
+        await srcFile.copy(destFile.path);
+      }
+      if (!await destFile.exists() || await destFile.length() == 0) {
+        throw StateError('Failed to prepare sticker file for WhatsApp: ${sticker.id}');
+      }
     }
 
     // 3. Write contents.json in whatsapp_packs/
