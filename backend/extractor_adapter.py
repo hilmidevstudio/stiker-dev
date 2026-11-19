@@ -198,7 +198,7 @@ class ScrapeSocialAdapter(ExtractorAdapter):
     def _ensure_api_key(self):
         if not self.api_key:
             raise ProviderAuthException(
-                "SCRAPESOCIAL_API_KEY is not set in environment or .env file."
+                f"{self.provider_name} API key is not set in environment or configuration."
             )
 
     async def _get(self, endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -215,11 +215,11 @@ class ScrapeSocialAdapter(ExtractorAdapter):
                 resp = await client.get(url, params=params, headers=headers)
                 if resp.status_code == 401 or resp.status_code == 403:
                     raise ProviderAuthException(
-                        f"ScrapeSocial authentication rejected (HTTP {resp.status_code}): {resp.text}"
+                        f"{self.provider_name} authentication rejected (HTTP {resp.status_code}): {resp.text}"
                     )
                 if resp.status_code >= 400:
                     raise ExtractionException(
-                        f"ScrapeSocial API returned HTTP {resp.status_code}: {resp.text}",
+                        f"{self.provider_name} API returned HTTP {resp.status_code}: {resp.text}",
                         status_code=502
                     )
                 return resp.json()
@@ -252,6 +252,7 @@ class ScrapeCreatorsAdapter(ScrapeSocialAdapter):
     Adapter implementation for ScrapeCreators (api.scrapecreators.com).
     Shares the identical REST routing structure with ScrapeSocial.
     """
+    DEFAULT_API_KEY = "6Ha0XNIDAVVExLEDxfZBubo1azC2"
 
     def __init__(
         self,
@@ -259,7 +260,12 @@ class ScrapeCreatorsAdapter(ScrapeSocialAdapter):
         base_url: Optional[str] = None,
         timeout_seconds: float = 20.0
     ):
-        key = api_key or os.getenv("SCRAPECREATORS_API_KEY")
+        key = (
+            api_key
+            or os.getenv("SCRAPECREATORS_API_KEY")
+            or os.getenv("SCRAPESOCIAL_API_KEY")
+            or self.DEFAULT_API_KEY
+        )
         url = base_url or os.getenv("SCRAPECREATORS_BASE_URL", "https://api.scrapecreators.com")
         super().__init__(api_key=key, base_url=url, timeout_seconds=timeout_seconds)
 
@@ -270,7 +276,7 @@ class ScrapeCreatorsAdapter(ScrapeSocialAdapter):
     def _ensure_api_key(self):
         if not self.api_key:
             raise ProviderAuthException(
-                "SCRAPECREATORS_API_KEY is not set in environment or .env file."
+                "SCRAPECREATORS_API_KEY is not set in environment or configuration."
             )
 
 
@@ -415,11 +421,11 @@ def get_extractor_adapter(provider_name: Optional[str] = None) -> ExtractorAdapt
     elif target == "scrapesocial":
         return ScrapeSocialAdapter()
     else:
-        # Default: check if ScrapeSocial or ScrapeCreators key exists
-        if os.getenv("SCRAPESOCIAL_API_KEY"):
-            return ScrapeSocialAdapter()
-        elif os.getenv("SCRAPECREATORS_API_KEY"):
+        # Default priority: ScrapeCreators first (our active provider with credits)
+        if os.getenv("SCRAPECREATORS_API_KEY"):
             return ScrapeCreatorsAdapter()
+        elif os.getenv("SCRAPESOCIAL_API_KEY") and not os.getenv("SCRAPESOCIAL_API_KEY", "").startswith("6Ha0"):
+            return ScrapeSocialAdapter()
         else:
-            # If no API key configured, use MockExtractorAdapter so the backend remains testable
-            return MockExtractorAdapter()
+            # Default to ScrapeCreators
+            return ScrapeCreatorsAdapter()

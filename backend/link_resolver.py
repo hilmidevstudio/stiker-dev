@@ -95,7 +95,7 @@ class TikTokLinkResolver:
         if not match:
             raise InvalidUrlException(f"No HTTP or HTTPS URL detected in input: '{raw_text[:60]}'")
 
-        return match.group(1).strip()
+        return match.group(1).strip().rstrip("'\">),.;]")
 
     async def resolve_short_url(self, url: str) -> str:
         """
