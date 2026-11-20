@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../../../core/network/api_client.dart';
@@ -26,7 +27,8 @@ class ExtractionService {
     }
 
     if (!cleaned.contains('http://') && !cleaned.contains('https://')) {
-      throw const InvalidUrlException('Input must be a valid HTTP or HTTPS URL');
+      throw const InvalidUrlException(
+          'Input must be a valid HTTP or HTTPS URL');
     }
 
     final json = await _apiClient.resolveAndExtract(url: cleaned);
@@ -47,11 +49,34 @@ class ExtractionService {
         );
       }
 
-      final response = await _downloadClient.get(uri);
+      // Keep the signed TikTok CDN URL in a POST body, not in the request path.
+      // The backend applies a CDN allowlist, redirect limit, byte cap, and WebP check.
+      final proxyUri = Uri.parse(_apiClient.baseUrl).resolve('/v1/media-proxy');
+      final response = await _downloadClient
+          .post(
+            proxyUri,
+            headers: const {
+              'Content-Type': 'application/json',
+              'Accept': 'image/webp, application/octet-stream',
+            },
+            body: jsonEncode({'url': mediaUrl}),
+          )
+          .timeout(const Duration(seconds: 30));
       if (response.statusCode != 200) {
+        var message = 'Media proxy failed: HTTP ${response.statusCode}';
+        var errorCode = 'MEDIA_PROXY_FAILED';
+        try {
+          final payload = jsonDecode(utf8.decode(response.bodyBytes));
+          if (payload is Map<String, dynamic>) {
+            message = payload['message'] as String? ?? message;
+            errorCode = payload['error_code'] as String? ?? errorCode;
+          }
+        } catch (_) {
+          // Keep the safe generic error when the backend did not return JSON.
+        }
         throw ApiException(
-          'Failed to download media: HTTP ${response.statusCode}',
-          errorCode: 'DOWNLOAD_FAILED',
+          message,
+          errorCode: errorCode,
           statusCode: response.statusCode,
         );
       }

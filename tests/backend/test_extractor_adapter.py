@@ -1,9 +1,11 @@
 import unittest
 import os
+from unittest.mock import AsyncMock
 
 
 from backend.extractor_adapter import (
     ScrapeCreatorsAdapter,
+    ScrapeSocialAdapter,
     DisabledExtractorAdapter,
     get_extractor_adapter,
 )
@@ -31,6 +33,35 @@ class TestScrapeCreatorsAdapter(unittest.TestCase):
         self.assertFalse(sticker.is_animated)
         self.assertEqual(sticker.format, "webp")
         self.assertEqual(sticker.media_url, "https://cdn.example.test/sticker.webp")
+
+    async def test_scrapecreators_comment_page_is_normalized_before_discovery(self):
+        self.adapter._get = AsyncMock(return_value={
+            "data": {
+                "comments": [{"id": "comment-1", "reply_count": 2, "display_name": "Tester"}],
+                "has_more": True,
+                "cursor": 20,
+            }
+        })
+        page = await self.adapter.fetch_comments("https://www.tiktok.com/@x/video/1", cursor=0)
+        self.assertEqual(page["comments"][0]["cid"], "comment-1")
+        self.assertEqual(page["comments"][0]["reply_comment_total"], 2)
+        self.assertEqual(page["comments"][0]["user"]["nickname"], "Tester")
+        self.assertTrue(page["has_more"])
+        self.assertEqual(page["cursor"], 20)
+
+    async def test_scrapesocial_reply_page_is_normalized_before_discovery(self):
+        adapter = ScrapeSocialAdapter(api_key="test-only-key")
+        adapter._get = AsyncMock(return_value={
+            "result": {
+                "reply_list": [{"comment_id": "reply-1", "user": {"uid": "u-1"}}],
+                "hasMore": False,
+                "cursor": 10,
+            }
+        })
+        page = await adapter.fetch_replies("parent-1", "https://www.tiktok.com/@x/video/1")
+        self.assertEqual(page["comments"][0]["cid"], "reply-1")
+        self.assertFalse(page["has_more"])
+        self.assertIsNone(page["cursor"])
 
     def test_sticker_without_any_media_url_is_rejected(self):
         comment = {

@@ -6,6 +6,7 @@ Uses starlette/fastapi TestClient.
 import unittest
 import os
 import sys
+from unittest.mock import AsyncMock, patch
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if PROJECT_ROOT not in sys.path:
@@ -41,6 +42,27 @@ class TestBackendAPI(unittest.TestCase):
         self.assertEqual(data["service"], "StickerDrop Backend API")
         self.assertEqual(data["status"], "online")
         self.assertIn("endpoints", data)
+
+    def test_media_proxy_returns_validated_webp_bytes_without_exposing_url_in_path(self):
+        fake_gateway = type("FakeGateway", (), {})()
+        fake_gateway.fetch = AsyncMock(return_value=b"RIFF" + b"\x00" * 4 + b"WEBP-test")
+        with patch("backend.main.MediaGateway", return_value=fake_gateway):
+            response = self.client.post(
+                "/v1/media-proxy",
+                json={"url": "https://p16-tiktok-dm-sticker-sign.tiktokcdn-us.com/sticker.awebp?sig=hidden"},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"RIFF" + b"\x00" * 4 + b"WEBP-test")
+        self.assertEqual(response.headers["content-type"], "image/webp")
+        self.assertEqual(response.headers["cache-control"], "private, no-store")
+
+    def test_media_proxy_rejects_unapproved_host(self):
+        response = self.client.post(
+            "/v1/media-proxy",
+            json={"url": "https://attacker.example/sticker.webp"},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["error_code"], "MEDIA_URL_NOT_ALLOWED")
 
     def test_health_endpoint(self):
         response = self.client.get("/health")

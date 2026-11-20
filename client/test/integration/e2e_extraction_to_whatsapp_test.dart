@@ -48,7 +48,8 @@ void main() {
     }
   });
 
-  test('E2E Flow: Extraction -> Storage -> SQLite Repo -> Pack Partition -> WA Export',
+  test(
+      'E2E Flow: Extraction -> Storage -> SQLite Repo -> Pack Partition -> WA Export',
       () async {
     // -------------------------------------------------------------
     // Step 1: Mock Backend Proxy & Extraction Service
@@ -58,7 +59,8 @@ void main() {
       'message': 'Sticker extracted successfully',
       'video_id': '7708356144804236564',
       'comment_id': '7708394712596972308',
-      'canonical_url': 'https://www.tiktok.com/@nyariprompt/video/7708356144804236564',
+      'canonical_url':
+          'https://www.tiktok.com/@nyariprompt/video/7708356144804236564',
       'comment_text': 'ngajak ribut kamu? 🗿',
       'create_time': 1731600000,
       'digg_count': 88,
@@ -94,32 +96,47 @@ void main() {
       ),
     ];
     final fakeBinaryBytes = animatedWebpFixtures.first;
+    var mediaProxyRequestSeen = false;
 
     final mockHttpClient = MockClient((request) async {
       if (request.url.path.contains('resolve-and-extract')) {
-        return http.Response(jsonEncode(mockExtractionPayload), 200, headers: {'content-type': 'application/json'});
+        return http.Response(jsonEncode(mockExtractionPayload), 200,
+            headers: {'content-type': 'application/json'});
       }
-      if (request.url.toString().contains('prabowo_animated.awebp')) {
-        return http.Response.bytes(fakeBinaryBytes, 200);
+      if (request.url.path == '/v1/media-proxy') {
+        mediaProxyRequestSeen = true;
+        expect(request.method, equals('POST'));
+        expect(request.url.query, isEmpty);
+        final payload = jsonDecode(request.body) as Map<String, dynamic>;
+        if ((payload['url'] as String).contains('prabowo_animated.awebp')) {
+          return http.Response.bytes(fakeBinaryBytes, 200,
+              headers: {'content-type': 'image/webp'});
+        }
       }
       return http.Response('Not Found', 404);
     });
 
-    final apiClient = ApiClient(httpClient: mockHttpClient, baseUrl: 'http://localhost:8000');
-    final extractionService = ExtractionService(apiClient: apiClient, downloadClient: mockHttpClient);
+    final apiClient =
+        ApiClient(httpClient: mockHttpClient, baseUrl: 'http://localhost:8000');
+    final extractionService =
+        ExtractionService(apiClient: apiClient, downloadClient: mockHttpClient);
 
     // Run extraction
-    final extraction = await extractionService.extractFromUrl(rawInput: 'https://vt.tiktok.com/ZS9f3yqSf57UR-naeU1/');
+    final extraction = await extractionService.extractFromUrl(
+        rawInput: 'https://vt.tiktok.com/ZS9f3yqSf57UR-naeU1/');
     expect(extraction.success, isTrue);
     expect(extraction.commentId, equals('7708394712596972308'));
     expect(extraction.sticker.isAnimated, isTrue);
 
     // Download bytes
-    final downloadedBytes = await extractionService.downloadMedia(extraction.sticker.mediaUrl);
+    final downloadedBytes =
+        await extractionService.downloadMedia(extraction.sticker.mediaUrl);
+    expect(mediaProxyRequestSeen, isTrue);
     expect(downloadedBytes.length, greaterThan(12));
     expect(ascii.decode(downloadedBytes.sublist(0, 4)), equals('RIFF'));
     expect(ascii.decode(downloadedBytes.sublist(8, 12)), equals('WEBP'));
-    final mediaInfo = WebPInspector.inspect(Uint8List.fromList(downloadedBytes));
+    final mediaInfo =
+        WebPInspector.inspect(Uint8List.fromList(downloadedBytes));
     expect(mediaInfo.isAnimated, isTrue);
     expect(mediaInfo.frameCount, equals(2));
 
@@ -164,7 +181,8 @@ void main() {
     // Add 2 more distinct stickers to fulfill WhatsApp min 3 stickers requirement
     for (int i = 2; i <= 3; i++) {
       final dummyBytes = animatedWebpFixtures[i - 1];
-      final res = await storageManager.saveMediaBytes(bytes: dummyBytes, extension: 'awebp');
+      final res = await storageManager.saveMediaBytes(
+          bytes: dummyBytes, extension: 'awebp');
       await stickerRepo.insertSticker(StickerModel(
         sourceVideoId: 'video_$i',
         sourceCommentId: 'comment_$i',
@@ -230,11 +248,13 @@ void main() {
     expect(packStickerFiles.length, equals(3));
 
     // Verify contents.json exists and is valid WhatsApp format
-    final contentsJsonFile = File(p.join(tempBaseDir.path, 'whatsapp_packs', 'contents.json'));
+    final contentsJsonFile =
+        File(p.join(tempBaseDir.path, 'whatsapp_packs', 'contents.json'));
     expect(contentsJsonFile.existsSync(), isTrue);
 
     final manifestJson = jsonDecode(contentsJsonFile.readAsStringSync());
-    expect(manifestJson['android_play_store_link'], contains('com.stickerdrop.app'));
+    expect(manifestJson['android_play_store_link'],
+        contains('com.stickerdrop.app'));
     expect(manifestJson['sticker_packs'], isList);
     expect(manifestJson['sticker_packs'].length, equals(1));
 

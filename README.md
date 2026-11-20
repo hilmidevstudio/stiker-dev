@@ -118,3 +118,8 @@ The Patch 3 backend/core suite currently passes 55 tests. Flutter tests must als
 ### Provider opt-in
 
 Do not run live extraction or set a paid provider unless you intentionally authorize the associated cost. A paid legacy adapter is enabled only by explicitly setting `EXTRACTION_PROVIDER=scrapecreators` or `scrapesocial` on the backend. The default is `disabled`. The future independent adapter must implement the contract in `docs/16-independent-extraction-adapter-contract.md` and must be authorized for the intended use.
+
+
+## Patch 4 — Provider Normalization & Secure Media Pipeline
+
+See `PATCH_4_PROVIDER_MEDIA_PIPELINE.md` and `docs/17-provider-normalization-and-media-gateway.md`. Patch 4 normalizes upstream comment/reply payloads and fetches sticker WebP through a bounded, allowlisted backend media proxy. It does not add a TikTok scraper or enable paid providers.

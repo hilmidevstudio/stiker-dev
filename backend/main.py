@@ -10,13 +10,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.exceptions import RequestValidationError
 
 from .schemas import (
     ResolveAndExtractRequest,
     ResolveAndExtractResponse,
     ErrorDetail,
+    MediaProxyRequest,
 )
 from .link_resolver import (
     TikTokLinkResolver,
@@ -31,6 +32,7 @@ from .extractor_adapter import (
     CommentNotFoundException,
     StickerNotFoundException,
 )
+from .media_gateway import MediaGateway
 from .comment_discovery import (
     CommentDiscoveryEngine,
     CommentSearchIncompleteException,
@@ -60,7 +62,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="StickerDrop Backend API",
     description="TikTok comment sticker extraction and media normalization service",
-    version="1.1.0",
+    version="1.2.0",
     lifespan=lifespan
 )
 
@@ -106,7 +108,8 @@ async def extraction_exception_handler(request: Request, exc: ExtractionExceptio
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.warning(f"Validation error on {request.url.path}: {exc.errors()}")
+    # Pydantic error details can contain submitted URLs; log only the route and error count.
+    logger.warning("Validation error on %s (%d field error(s))", request.url.path, len(exc.errors()))
     error_payload = ErrorDetail(
         success=False,
         error_code="VALIDATION_ERROR",
@@ -206,7 +209,7 @@ async def process_resolve_and_extract(
 async def root():
     return {
         "service": "StickerDrop Backend API",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "status": "online",
         "documentation": "/docs",
         "endpoints": {
@@ -214,6 +217,7 @@ async def root():
             "POST /v1/resolve-and-extract": "Resolve TikTok comment link and discover sticker metadata",
             "GET /v1/resolve-and-extract": "Resolve TikTok comment link via query parameter ?url=...",
             "GET /v1/extraction-status": "Report configured extraction adapter without making a provider request",
+            "POST /v1/media-proxy": "Fetch and validate an approved TikTok CDN WebP through the backend",
             "GET /health": "Server health status"
         }
     }
@@ -232,6 +236,27 @@ async def health_check():
 async def extraction_status():
     """Expose provider selection only; never disclose secrets or make network calls."""
     return get_extraction_provider_status()
+
+
+
+
+@app.post("/v1/media-proxy", tags=["Media"])
+async def media_proxy(payload: MediaProxyRequest):
+    """Fetch a CDN asset server-side after host, size, redirect, and WebP checks.
+
+    The URL is accepted in a POST body so signed CDN query parameters do not appear
+    in ordinary HTTP access-log request lines.
+    """
+    media_bytes = await MediaGateway().fetch(payload.url)
+    return Response(
+        content=media_bytes,
+        media_type="image/webp",
+        headers={
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Disposition": "inline; filename=sticker.webp",
+        },
+    )
 
 
 @app.post("/v1/resolve-link", tags=["Diagnostics"])

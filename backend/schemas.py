@@ -7,6 +7,12 @@ from typing import Optional, Dict, Any
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class MediaProxyRequest(BaseModel):
+    """Request to fetch a validated TikTok CDN WebP through the backend."""
+    model_config = ConfigDict(extra="forbid")
+    url: str = Field(..., min_length=12, max_length=4096)
+
+
 class ResolveAndExtractRequest(BaseModel):
     """Input payload for POST /v1/resolve-and-extract."""
     model_config = ConfigDict(extra="forbid")

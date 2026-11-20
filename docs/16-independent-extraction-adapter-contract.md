@@ -98,7 +98,7 @@ A search budget is a safety ceiling, not a claim that a target is absent. Reachi
 
 ## Media contract
 
-The adapter returns a candidate HTTPS media URL in `cmt_sticker_struct`. The mobile client downloads the bytes and runs `WebPInspector` against the actual RIFF/WebP contents. The binary inspection is authoritative for:
+The adapter returns a candidate HTTPS media URL in `cmt_sticker_struct`. The mobile client now posts that URL to `/v1/media-proxy`. The backend checks the CDN allowlist, revalidates redirects, enforces a byte cap, and verifies RIFF/WebP chunk structure before returning the bytes. The mobile client then runs `WebPInspector` against the actual RIFF/WebP contents. The binary inspection is authoritative for:
 
 - static vs animated WebP;
 - frame count and animation duration;
@@ -119,3 +119,8 @@ Provider `sticker_type`, a `.awebp` URL suffix, or a provider MIME hint are not 
 ## What is not implemented yet
 
 This contract does not fetch TikTok data by itself. It does not establish that TikTok exposes an unauthenticated public endpoint for comment sticker media, and it does not bypass platform access controls. A future adapter must provide a documented or otherwise authorized source that includes the exact sticker media object/URL.
+
+
+## Patch 4 response normalization
+
+The concrete ScrapeSocial and ScrapeCreators adapters pass raw responses through `backend/provider_normalization.py`. Supported top-level/nested envelopes and comment list aliases are converted into the page contract. Unknown payload shapes are returned as `UPSTREAM_INVALID_RESPONSE`, not treated as empty pages. See `docs/17-provider-normalization-and-media-gateway.md`.

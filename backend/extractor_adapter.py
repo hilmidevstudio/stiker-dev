@@ -10,6 +10,7 @@ import httpx
 from dotenv import load_dotenv
 
 from .schemas import StickerMediaResponse, CommentAuthorResponse
+from .provider_normalization import normalize_provider_page
 
 # Load environment variables from .env
 load_dotenv()
@@ -274,13 +275,15 @@ class ScrapeSocialAdapter(ExtractorAdapter):
     ) -> Dict[str, Any]:
         # ScrapeCreators documents url, cursor and trim; `count` is not a documented query parameter.
         params = {"url": video_url, "cursor": cursor}
-        return await self._get("/v1/tiktok/video/comments", params)
+        raw_response = await self._get("/v1/tiktok/video/comments", params)
+        return normalize_provider_page(raw_response)
 
     async def fetch_replies(
         self, comment_id: str, video_url: str, cursor: int = 0
     ) -> Dict[str, Any]:
         params = {"comment_id": comment_id, "url": video_url, "cursor": cursor}
-        return await self._get("/v1/tiktok/video/comment/replies", params)
+        raw_response = await self._get("/v1/tiktok/video/comment/replies", params)
+        return normalize_provider_page(raw_response)
 
 
 class ScrapeCreatorsAdapter(ScrapeSocialAdapter):
