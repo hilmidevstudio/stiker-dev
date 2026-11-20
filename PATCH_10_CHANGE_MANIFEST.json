@@ -1,0 +1,29 @@
+{
+  "patch": 10,
+  "name": "TikTok Business API Owned-Video Source",
+  "version": "1.0.0",
+  "changes": [
+    "Add separate read-only TikTok Business API source service implementing StickerDrop /v1/comments and /v1/replies contract",
+    "Require separate service-to-backend Bearer authentication",
+    "Use official TikTok Business comment list and reply list endpoints",
+    "Restrict supported input to canonical owned /video/<id> URLs",
+    "Normalize official image_url as comment_pics without fabricating cmt_sticker_struct",
+    "Add cursor pagination, upstream response bounds, redirect rejection, and sanitized errors",
+    "Add offline integration tests and deployment documentation"
+  ],
+  "verification": {
+    "command": "python -W error::RuntimeWarning scripts/run_tests.py",
+    "tests_run": 154,
+    "failures": 0,
+    "errors": 0,
+    "live_tiktok_calls": 0
+  },
+  "production_provider_enabled": false,
+  "known_limitations": [
+    "TikTok Business API comments are limited to videos owned by the connected and authorized TikTok account",
+    "The service requires a short-term TikTok account access token supplied via environment; automatic refresh is not implemented",
+    "The official image_url field is not guaranteed to represent every native TikTok comment sticker",
+    "StickerDrop media pipeline accepts valid WebP bytes; other image formats do not qualify yet",
+    "This does not support arbitrary public video URLs or photo posts"
+  ]
+}
