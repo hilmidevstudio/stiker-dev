@@ -432,6 +432,10 @@ def get_extractor_adapter(provider_name: Optional[str] = None) -> ExtractorAdapt
         return ScrapeCreatorsAdapter()
     if target == "scrapesocial":
         return ScrapeSocialAdapter()
+    if target == "authorized_source":
+        # Import lazily: the bridge subclasses ExtractorAdapter from this module.
+        from .authorized_source_adapter import AuthorizedSourceAdapter
+        return AuthorizedSourceAdapter()
     raise ExtractionException(
         f"Unsupported EXTRACTION_PROVIDER value: {target!r}.",
         error_code="INVALID_EXTRACTION_PROVIDER",
@@ -461,6 +465,9 @@ def get_extraction_provider_status() -> Dict[str, Any]:
         return {"provider": target, "configured": True,
                 "ready": bool(os.getenv("SCRAPESOCIAL_API_KEY")),
                 "provider_called": False, "external_credit_provider": True}
+    if target == "authorized_source":
+        from .authorized_source_adapter import authorized_source_configuration_status
+        return authorized_source_configuration_status()
     return {"provider": target, "configured": True, "ready": False,
             "provider_called": False, "external_credit_provider": False,
             "configuration_error": "Unsupported EXTRACTION_PROVIDER value"}

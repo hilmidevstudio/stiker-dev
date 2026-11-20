@@ -1,0 +1,49 @@
+{
+  "patch": "StickerDrop Patch 8 \u2014 Operator-Managed Authorized Source HTTP Adapter",
+  "test_count": 120,
+  "failures": 0,
+  "errors": 0,
+  "network_calls_in_tests": false,
+  "files": [
+    {
+      "path": ".env.example",
+      "size_bytes": 2360,
+      "sha256": "d2dd1f42808e877f90f0f0507edd29f0a73988463bc616558c6e7e08645f007c"
+    },
+    {
+      "path": "PATCH_8_INSTALL.md",
+      "size_bytes": 2626,
+      "sha256": "a01634bf993794fb0619823545121f0c7a1a7c70f3a329c43edccb744e7adede"
+    },
+    {
+      "path": "PATCH_8_TEST_LOG.txt",
+      "size_bytes": 22835,
+      "sha256": "cc27a13bf3aa15d0ba4362f1558bb13671bfc273e0d5413c4ffa4719e2248a27"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 11423,
+      "sha256": "08b62fe5b20bce078ed7018e4592c66c511ea428d99eac41d31ac110dcf19edd"
+    },
+    {
+      "path": "backend/authorized_source_adapter.py",
+      "size_bytes": 14558,
+      "sha256": "db65bdc4008057b72450c87d4d76a6bd062b90f393e465ba25aaca72905b8b0a"
+    },
+    {
+      "path": "backend/extractor_adapter.py",
+      "size_bytes": 19196,
+      "sha256": "d2d93488c5ede01b3918cea4d68ab0b55cd1f591e6d3fad4e946bae297c35bf3"
+    },
+    {
+      "path": "docs/19-authorized-source-http-adapter.md",
+      "size_bytes": 5336,
+      "sha256": "37a5f700a41535cfd5ed5af4d3ebb852735580fa53d43c9f9b80e0a4f92cae2e"
+    },
+    {
+      "path": "tests/backend/test_authorized_source_adapter.py",
+      "size_bytes": 15159,
+      "sha256": "c1adaa2a0e44a63e93d44d630b561c7fcb4771c11d2df9addd853d0286b41531"
+    }
+  ]
+}

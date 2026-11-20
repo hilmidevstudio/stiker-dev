@@ -1,6 +1,6 @@
 # StickerDrop — Research, Reverse Engineering & System Engineering
 
-> **Current engineering status — Patch 6 (20 Nov 2026):** the backend suite passes **89/89** tests in the build environment with runtime warnings treated as errors. The provider-neutral comment-discovery engine, provider normalization, hardened WebP media gateway, fail-closed provider default (`EXTRACTION_PROVIDER=disabled`), and safe source-bundle tooling are in place. Patch 7 adds an offline source-qualification gate for exact comment IDs, real sticker structs, approved CDN URLs, WebP bytes, and SHA-256. The independent TikTok sticker-data adapter is **not implemented yet**, so live sticker extraction remains disabled until an authorized source is connected and validated. This is an engineering foundation, not a public-release build. See the Patch 3–6 notes and `docs/16-independent-extraction-adapter-contract.md`.
+> **Current engineering status — Patch 8 (20 Nov 2026):** the backend suite passes **120/120** tests with runtime warnings treated as errors. Patch 8 adds an operator-managed HTTPS source bridge with bearer authentication, bounded JSON responses, redirect rejection, and normalized comment/reply pagination. The bridge is a connector, not a TikTok scraper. No authorized live source has been deployed or qualified against the Golden Reference, so production extraction must remain disabled. This is an engineering foundation, not a public-release build.
 
 StickerDrop is an Android application concept engineered to extract stickers attached to TikTok comments and export them directly into WhatsApp sticker packs.
 
@@ -30,6 +30,7 @@ c:\stiker-dev\
 │   ├── main.py                         # App entry point, CORS & global error handling
 │   ├── link_resolver.py                # Asynchronous TikTok short URL cleaner & resolver
 │   ├── extractor_adapter.py            # Pluggable adapters; safe default is disabled
+│   ├── authorized_source_adapter.py     # Operator-managed HTTPS source bridge
 │   ├── comment_discovery.py             # Provider-neutral cursor/reply discovery engine
 │   └── schemas.py                      # Pydantic v2 schemas for requests & responses
 │
@@ -113,7 +114,7 @@ See `PATCH_3_ENGINE_FOUNDATION.md` and `docs/16-independent-extraction-adapter-c
 ```powershell
 python scripts/run_tests.py
 ```
-The current backend/core suite passes 89 tests. Flutter tests must also be run from `client/` on a machine with the Flutter SDK installed.
+The current backend/core suite passes 120 tests. Flutter tests must also be run from `client/` on a machine with the Flutter SDK installed.
 
 ### Provider opt-in
 
@@ -138,3 +139,8 @@ Patch 6 reuses one media gateway per backend worker, adds a process-local rollin
 ## Patch 7 — Authorized Source Qualification & Golden Reference Gate
 
 Patch 7 adds `backend/source_qualification.py` and `scripts/qualify_adapter_source.py`. The CLI validates a captured normalized comment response and the exact media bytes without making network requests or spending API credits. It distinguishes a metadata-only source from one that has actually delivered valid WebP bytes. See `docs/18-authorized-source-qualification.md` for documented TikTok Research API limitations, source eligibility, usage, and the Golden Reference procedure. The backend suite now contains 98 tests. This patch does not implement or enable an independent TikTok scraper.
+
+
+## Patch 8 — Operator-Managed Authorized Source HTTP Adapter
+
+Patch 8 adds `backend/authorized_source_adapter.py`, an HTTP bridge for a separately operated extraction source. It uses backend-only bearer credentials, requires HTTPS in production, disables redirects, bounds response size, and normalizes the two comment/reply endpoints. It does not scrape TikTok or make any provider call during tests. The source service must implement the contract in `docs/19-authorized-source-http-adapter.md` and be authorized for the intended use. Keep `EXTRACTION_PROVIDER=disabled` until a real service is deployed and passes the Patch 7 qualification gate with the Golden Reference. See `PATCH_8_INSTALL.md`.
