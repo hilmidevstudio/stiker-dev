@@ -94,7 +94,7 @@ class TikTokLinkResolver:
 
         match = self.URL_FINDER_REGEX.search(cleaned)
         if not match:
-            raise InvalidUrlException(f"No HTTP or HTTPS URL detected in input: '{raw_text[:60]}'")
+            raise InvalidUrlException("No HTTP or HTTPS URL detected in the supplied input.")
 
         return match.group(1).strip().rstrip("'\">),.;]")
 
@@ -173,7 +173,7 @@ class TikTokLinkResolver:
 
         if not post_id:
             raise VideoIdNotFoundException(
-                f"Could not extract a valid TikTok post ID from resolved URL: {canonical_url}"
+                "Could not extract a valid TikTok post ID from the resolved link."
             )
 
         # 2. Extract Comment ID (from share_comment_id, comment_id, or cid)

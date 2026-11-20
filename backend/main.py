@@ -66,6 +66,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Reuse one gateway per worker so its rate guard, concurrency cap, and bounded cache
+# apply across requests instead of resetting for every media-proxy call.
+media_gateway = MediaGateway()
+
 # ---------------------------------------------------------------------------
 # CORS Configuration
 # ---------------------------------------------------------------------------
@@ -84,7 +88,8 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 @app.exception_handler(LinkResolverException)
 async def link_resolver_exception_handler(request: Request, exc: LinkResolverException):
-    logger.warning(f"Link resolution error on {request.url.path}: {exc.message}")
+    # Do not log exception text: malformed inputs and provider redirects can contain URLs.
+    logger.warning("Link resolution error on %s (%s)", request.url.path, exc.error_code)
     error_payload = ErrorDetail(
         success=False,
         error_code=exc.error_code,
@@ -96,37 +101,61 @@ async def link_resolver_exception_handler(request: Request, exc: LinkResolverExc
 
 @app.exception_handler(ExtractionException)
 async def extraction_exception_handler(request: Request, exc: ExtractionException):
-    logger.warning(f"Extraction error on {request.url.path}: {exc.message}")
+    # Exception text can originate from an upstream service; log only a safe code.
+    logger.warning("Extraction error on %s (%s)", request.url.path, exc.error_code)
     error_payload = ErrorDetail(
         success=False,
         error_code=exc.error_code,
         message=exc.message,
         details=exc.details or {"path": request.url.path}
     )
-    return JSONResponse(status_code=exc.status_code, content=error_payload.model_dump())
+    response_headers = {}
+    if exc.error_code == "MEDIA_RATE_LIMITED":
+        response_headers["Retry-After"] = "60"
+    elif exc.error_code == "MEDIA_GATEWAY_BUSY":
+        response_headers["Retry-After"] = "1"
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=error_payload.model_dump(),
+        headers=response_headers,
+    )
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     # Pydantic error details can contain submitted URLs; log only the route and error count.
     logger.warning("Validation error on %s (%d field error(s))", request.url.path, len(exc.errors()))
+    safe_errors = [
+        {
+            "location": list(error.get("loc", ())),
+            "type": error.get("type", "validation_error"),
+        }
+        for error in exc.errors()
+    ]
     error_payload = ErrorDetail(
         success=False,
         error_code="VALIDATION_ERROR",
         message="Invalid request parameters or payload structure.",
-        details={"errors": exc.errors()}
+        # Pydantic's raw errors can include the complete submitted URL in `input`.
+        details={"errors": safe_errors}
     )
     return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content=error_payload.model_dump())
 
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled server error on {request.url.path}: {str(exc)}", exc_info=True)
+    # Avoid exception strings and tracebacks in normal logs/responses because they may
+    # contain complete URLs, credentials, or raw upstream payloads.
+    logger.error(
+        "Unhandled server error on %s (%s)",
+        request.url.path,
+        type(exc).__name__,
+    )
     error_payload = ErrorDetail(
         success=False,
         error_code="INTERNAL_SERVER_ERROR",
         message="An unexpected server error occurred. Please try again later.",
-        details={"error": str(exc)}
+        details={"path": request.url.path}
     )
     return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=error_payload.model_dump())
 
@@ -247,7 +276,7 @@ async def media_proxy(payload: MediaProxyRequest):
     The URL is accepted in a POST body so signed CDN query parameters do not appear
     in ordinary HTTP access-log request lines.
     """
-    media_bytes = await MediaGateway().fetch(payload.url)
+    media_bytes = await media_gateway.fetch(payload.url)
     return Response(
         content=media_bytes,
         media_type="image/webp",

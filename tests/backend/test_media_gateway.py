@@ -1,3 +1,4 @@
+import asyncio
 import unittest
 
 import httpx
@@ -87,6 +88,84 @@ class TestMediaGateway(unittest.IsolatedAsyncioTestCase):
             MediaGateway(max_bytes=10)
         with self.assertRaises(ValueError):
             MediaGateway(max_bytes=6_000_000)
+
+    async def test_repeated_fetch_uses_bounded_process_cache(self):
+        calls = []
+        fixture = _static_webp()
+
+        def handler(request):
+            calls.append(request.url.path)
+            return httpx.Response(200, content=fixture, headers={"content-type": "image/webp"})
+
+        gateway = MediaGateway(
+            allowed_hosts=["cdn.example.test"],
+            transport=httpx.MockTransport(handler),
+            cache_ttl_seconds=60,
+            max_cache_bytes=4096,
+        )
+        first = await gateway.fetch("https://cdn.example.test/sticker.webp?signature=secret")
+        second = await gateway.fetch("https://cdn.example.test/sticker.webp?signature=secret")
+        self.assertEqual(first, fixture)
+        self.assertEqual(second, fixture)
+        self.assertEqual(calls, ["/sticker.webp"])
+        self.assertLessEqual(gateway._cache_bytes, gateway.max_cache_bytes)
+
+    async def test_process_rate_guard_rejects_request_after_configured_window_budget(self):
+        fixture = _static_webp()
+        transport = httpx.MockTransport(lambda request: httpx.Response(
+            200, content=fixture, headers={"content-type": "image/webp"}
+        ))
+        gateway = MediaGateway(
+            allowed_hosts=["cdn.example.test"],
+            transport=transport,
+            max_requests_per_minute=10,
+            cache_ttl_seconds=0,
+        )
+        for index in range(10):
+            await gateway.fetch(f"https://cdn.example.test/{index}.webp")
+        with self.assertRaises(MediaGatewayError) as context:
+            await gateway.fetch("https://cdn.example.test/11.webp")
+        self.assertEqual(context.exception.status_code, 429)
+        self.assertEqual(context.exception.error_code, "MEDIA_RATE_LIMITED")
+
+    async def test_concurrency_guard_rejects_excess_upstream_fetches(self):
+        fixture = _static_webp()
+        started = asyncio.Event()
+
+        async def handler(request):
+            started.set()
+            await asyncio.sleep(0.25)
+            return httpx.Response(200, content=fixture, headers={"content-type": "image/webp"})
+
+        gateway = MediaGateway(
+            allowed_hosts=["cdn.example.test"],
+            transport=httpx.MockTransport(handler),
+            max_concurrent=1,
+            cache_ttl_seconds=0,
+        )
+        first_task = asyncio.create_task(gateway.fetch("https://cdn.example.test/first.webp"))
+        await started.wait()
+        with self.assertRaises(MediaGatewayError) as context:
+            await gateway.fetch("https://cdn.example.test/second.webp")
+        self.assertEqual(context.exception.status_code, 503)
+        self.assertEqual(context.exception.error_code, "MEDIA_GATEWAY_BUSY")
+        self.assertEqual(await first_task, fixture)
+
+    async def test_rejects_general_tiktok_web_host_not_cdn_allowlist(self):
+        gateway = MediaGateway()
+        with self.assertRaises(MediaGatewayError) as context:
+            await gateway.fetch("https://www.tiktok.com/anything.webp")
+        self.assertEqual(context.exception.error_code, "MEDIA_URL_NOT_ALLOWED")
+
+    def test_rejects_unsafe_gateway_limits(self):
+        with self.assertRaises(ValueError):
+            MediaGateway(max_redirects=6)
+        with self.assertRaises(ValueError):
+            MediaGateway(max_concurrent=0)
+        with self.assertRaises(ValueError):
+            MediaGateway(max_requests_per_minute=9)
+        with self.assertRaises(ValueError):
+            MediaGateway(max_cache_bytes=65 * 1024 * 1024)
 
 
 if __name__ == "__main__":

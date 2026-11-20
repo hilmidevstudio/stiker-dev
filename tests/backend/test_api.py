@@ -46,7 +46,7 @@ class TestBackendAPI(unittest.TestCase):
     def test_media_proxy_returns_validated_webp_bytes_without_exposing_url_in_path(self):
         fake_gateway = type("FakeGateway", (), {})()
         fake_gateway.fetch = AsyncMock(return_value=b"RIFF" + b"\x00" * 4 + b"WEBP-test")
-        with patch("backend.main.MediaGateway", return_value=fake_gateway):
+        with patch("backend.main.media_gateway", fake_gateway):
             response = self.client.post(
                 "/v1/media-proxy",
                 json={"url": "https://p16-tiktok-dm-sticker-sign.tiktokcdn-us.com/sticker.awebp?sig=hidden"},
@@ -63,6 +63,24 @@ class TestBackendAPI(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.json()["error_code"], "MEDIA_URL_NOT_ALLOWED")
+
+    def test_media_proxy_rate_limit_returns_retry_after_header(self):
+        from backend.media_gateway import MediaGatewayError
+
+        fake_gateway = type("FakeGateway", (), {})()
+        fake_gateway.fetch = AsyncMock(side_effect=MediaGatewayError(
+            "Media gateway is receiving too many requests. Please retry shortly.",
+            "MEDIA_RATE_LIMITED",
+            429,
+        ))
+        with patch("backend.main.media_gateway", fake_gateway):
+            response = self.client.post(
+                "/v1/media-proxy",
+                json={"url": "https://p16-tiktok-dm-sticker-sign.tiktokcdn-us.com/sticker.webp"},
+            )
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.headers.get("retry-after"), "60")
+        self.assertEqual(response.json()["error_code"], "MEDIA_RATE_LIMITED")
 
     def test_health_endpoint(self):
         response = self.client.get("/health")
@@ -139,6 +157,40 @@ class TestBackendAPI(unittest.TestCase):
         data = response.json()
         self.assertFalse(data["success"])
         self.assertEqual(data["error_code"], "INVALID_URL")
+
+
+    def test_validation_error_does_not_echo_submitted_signed_url(self):
+        secret_url = "https://www.tiktok.com/@x/video/123?x-signature=DO_NOT_ECHO"
+        response = self.client.post(
+            "/v1/resolve-and-extract",
+            json={"url": secret_url, "provider": "mock"},
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["error_code"], "VALIDATION_ERROR")
+        self.assertNotIn("DO_NOT_ECHO", response.text)
+        self.assertNotIn("x-signature", response.text)
+
+    def test_invalid_url_error_does_not_echo_raw_input(self):
+        private_value = "private-token-should-not-echo"
+        with self.assertLogs("stickerdrop.backend", level="WARNING") as captured:
+            response = self.client.post(
+                "/v1/resolve-and-extract",
+                json={"url": private_value},
+            )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error_code"], "INVALID_URL")
+        self.assertNotIn(private_value, response.text)
+        self.assertNotIn(private_value, "\n".join(captured.output))
+
+    def test_post_without_post_id_does_not_echo_resolved_query(self):
+        signed_url = "https://www.tiktok.com/@x/not-a-post?x-signature=DO_NOT_ECHO"
+        response = self.client.post(
+            "/v1/resolve-and-extract",
+            json={"url": signed_url},
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(response.json()["error_code"], "VIDEO_ID_NOT_FOUND")
+        self.assertNotIn("DO_NOT_ECHO", response.text)
 
     def test_public_client_cannot_override_provider(self):
         response = self.client.post(

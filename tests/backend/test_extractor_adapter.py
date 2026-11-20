@@ -11,7 +11,7 @@ from backend.extractor_adapter import (
 )
 
 
-class TestScrapeCreatorsAdapter(unittest.TestCase):
+class TestScrapeCreatorsAdapter(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.adapter = ScrapeCreatorsAdapter(api_key="test-only-key")
 
@@ -43,6 +43,10 @@ class TestScrapeCreatorsAdapter(unittest.TestCase):
             }
         })
         page = await self.adapter.fetch_comments("https://www.tiktok.com/@x/video/1", cursor=0)
+        self.adapter._get.assert_awaited_once_with(
+            "/v1/tiktok/video/comments",
+            {"url": "https://www.tiktok.com/@x/video/1", "cursor": 0},
+        )
         self.assertEqual(page["comments"][0]["cid"], "comment-1")
         self.assertEqual(page["comments"][0]["reply_comment_total"], 2)
         self.assertEqual(page["comments"][0]["user"]["nickname"], "Tester")
@@ -59,9 +63,40 @@ class TestScrapeCreatorsAdapter(unittest.TestCase):
             }
         })
         page = await adapter.fetch_replies("parent-1", "https://www.tiktok.com/@x/video/1")
+        adapter._get.assert_awaited_once_with(
+            "/v1/tiktok/video/comment/replies",
+            {"comment_id": "parent-1", "url": "https://www.tiktok.com/@x/video/1", "cursor": 0},
+        )
         self.assertEqual(page["comments"][0]["cid"], "reply-1")
         self.assertFalse(page["has_more"])
         self.assertIsNone(page["cursor"])
+
+
+    async def test_upstream_error_body_is_not_exposed_in_exception(self):
+        class FakeResponse:
+            status_code = 429
+            text = "signed_url=https://cdn.example/sticker.webp?token=DO_NOT_LOG"
+
+        class FakeAsyncClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, traceback):
+                return False
+
+            async def get(self, *args, **kwargs):
+                return FakeResponse()
+
+        from unittest.mock import patch
+        from backend.extractor_adapter import ExtractionException
+
+        with patch("backend.extractor_adapter.httpx.AsyncClient", return_value=FakeAsyncClient()):
+            with self.assertRaises(ExtractionException) as context:
+                await self.adapter._get("/v1/tiktok/video/comments", {"cursor": 0})
+
+        self.assertEqual(context.exception.error_code, "PROVIDER_REQUEST_FAILED")
+        self.assertNotIn("DO_NOT_LOG", str(context.exception))
+        self.assertNotIn("cdn.example", str(context.exception))
 
     def test_sticker_without_any_media_url_is_rejected(self):
         comment = {

@@ -1,6 +1,6 @@
 # StickerDrop — Research, Reverse Engineering & System Engineering
 
-> **Current engineering status — Patch 3 (20 Nov 2026):** the backend now has a provider-neutral comment-discovery engine, cursor pagination, safe extraction-provider default (`EXTRACTION_PROVIDER=disabled`), and binary-based WebP inspection in the Flutter save path. The Python backend suite passes **55/55** in the build environment. The independent TikTok sticker-data adapter is **not implemented yet**, so live sticker extraction is intentionally disabled until an authorized source is connected and validated. This is an engineering foundation, not a public-release build. See `PATCH_3_ENGINE_FOUNDATION.md` and `docs/16-independent-extraction-adapter-contract.md`.
+> **Current engineering status — Patch 6 (20 Nov 2026):** the backend suite passes **89/89** tests in the build environment with runtime warnings treated as errors. The provider-neutral comment-discovery engine, provider normalization, hardened WebP media gateway, fail-closed provider default (`EXTRACTION_PROVIDER=disabled`), and safe source-bundle tooling are in place. The independent TikTok sticker-data adapter is **not implemented yet**, so live sticker extraction remains disabled until an authorized source is connected and validated. This is an engineering foundation, not a public-release build. See the Patch 3–6 notes and `docs/16-independent-extraction-adapter-contract.md`.
 
 StickerDrop is an Android application concept engineered to extract stickers attached to TikTok comments and export them directly into WhatsApp sticker packs.
 
@@ -113,7 +113,7 @@ See `PATCH_3_ENGINE_FOUNDATION.md` and `docs/16-independent-extraction-adapter-c
 ```powershell
 python scripts/run_tests.py
 ```
-The Patch 3 backend/core suite currently passes 55 tests. Flutter tests must also be run from `client/` on a machine with the Flutter SDK installed.
+The current backend/core suite passes 89 tests. Flutter tests must also be run from `client/` on a machine with the Flutter SDK installed.
 
 ### Provider opt-in
 
@@ -123,3 +123,13 @@ Do not run live extraction or set a paid provider unless you intentionally autho
 ## Patch 4 — Provider Normalization & Secure Media Pipeline
 
 See `PATCH_4_PROVIDER_MEDIA_PIPELINE.md` and `docs/17-provider-normalization-and-media-gateway.md`. Patch 4 normalizes upstream comment/reply payloads and fetches sticker WebP through a bounded, allowlisted backend media proxy. It does not add a TikTok scraper or enable paid providers.
+
+
+## Patch 5 — Test Integrity, Log Hygiene & Safe Source Bundles
+
+Patch 5 fixes async adapter tests so they execute under `unittest.IsolatedAsyncioTestCase`, removes raw URLs and upstream response bodies from normal API errors/logs, and adds a source-bundle script that excludes `.env`, `.git`, virtual environments, generated builds, local databases, and Android signing material. See `PATCH_5_TEST_INTEGRITY_LOG_HYGIENE.md`.
+
+
+## Patch 6 — Media Gateway Abuse Guards
+
+Patch 6 reuses one media gateway per backend worker, adds a process-local rolling request guard, a concurrency cap, and a bounded in-memory LRU cache. It also removes the general `tiktok.com` website domain from the default media allowlist; only the known CDN roots remain. These are per-worker protections, not a shared per-user quota or a replacement for an edge/WAF rate limiter. Configuration and limitations are documented in `docs/17-provider-normalization-and-media-gateway.md` and `.env.example`.

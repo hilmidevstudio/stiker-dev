@@ -251,12 +251,14 @@ class ScrapeSocialAdapter(ExtractorAdapter):
                 resp = await client.get(url, params=params, headers=headers)
                 if resp.status_code == 401 or resp.status_code == 403:
                     raise ProviderAuthException(
-                        f"{self.provider_name} authentication rejected (HTTP {resp.status_code}): {resp.text}"
+                        f"{self.provider_name} authentication rejected (HTTP {resp.status_code})."
                     )
                 if resp.status_code >= 400:
                     raise ExtractionException(
-                        f"{self.provider_name} API returned HTTP {resp.status_code}: {resp.text}",
-                        status_code=502
+                        f"{self.provider_name} API request failed (HTTP {resp.status_code}).",
+                        error_code="PROVIDER_REQUEST_FAILED",
+                        status_code=502,
+                        details={"upstream_status": resp.status_code},
                     )
                 return resp.json()
         except httpx.TimeoutException:
@@ -267,8 +269,14 @@ class ScrapeSocialAdapter(ExtractorAdapter):
             )
         except (ExtractionException, ProviderAuthException):
             raise
-        except Exception as e:
-            raise ExtractionException(f"Network error connecting to extraction provider: {str(e)}")
+        except Exception:
+            # HTTP exceptions can embed the request URL, including share IDs or signed
+            # query parameters. Keep those values out of application errors and logs.
+            raise ExtractionException(
+                f"Network error connecting to {self.provider_name}.",
+                error_code="PROVIDER_NETWORK_ERROR",
+                status_code=502,
+            ) from None
 
     async def fetch_comments(
         self, video_url: str, cursor: int = 0, count: int = 50
