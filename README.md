@@ -1,6 +1,6 @@
 # StickerDrop — Research, Reverse Engineering & System Engineering
 
-> **Current engineering status — Patch 6 (20 Nov 2026):** the backend suite passes **89/89** tests in the build environment with runtime warnings treated as errors. The provider-neutral comment-discovery engine, provider normalization, hardened WebP media gateway, fail-closed provider default (`EXTRACTION_PROVIDER=disabled`), and safe source-bundle tooling are in place. The independent TikTok sticker-data adapter is **not implemented yet**, so live sticker extraction remains disabled until an authorized source is connected and validated. This is an engineering foundation, not a public-release build. See the Patch 3–6 notes and `docs/16-independent-extraction-adapter-contract.md`.
+> **Current engineering status — Patch 6 (20 Nov 2026):** the backend suite passes **89/89** tests in the build environment with runtime warnings treated as errors. The provider-neutral comment-discovery engine, provider normalization, hardened WebP media gateway, fail-closed provider default (`EXTRACTION_PROVIDER=disabled`), and safe source-bundle tooling are in place. Patch 7 adds an offline source-qualification gate for exact comment IDs, real sticker structs, approved CDN URLs, WebP bytes, and SHA-256. The independent TikTok sticker-data adapter is **not implemented yet**, so live sticker extraction remains disabled until an authorized source is connected and validated. This is an engineering foundation, not a public-release build. See the Patch 3–6 notes and `docs/16-independent-extraction-adapter-contract.md`.
 
 StickerDrop is an Android application concept engineered to extract stickers attached to TikTok comments and export them directly into WhatsApp sticker packs.
 
@@ -133,3 +133,8 @@ Patch 5 fixes async adapter tests so they execute under `unittest.IsolatedAsynci
 ## Patch 6 — Media Gateway Abuse Guards
 
 Patch 6 reuses one media gateway per backend worker, adds a process-local rolling request guard, a concurrency cap, and a bounded in-memory LRU cache. It also removes the general `tiktok.com` website domain from the default media allowlist; only the known CDN roots remain. These are per-worker protections, not a shared per-user quota or a replacement for an edge/WAF rate limiter. Configuration and limitations are documented in `docs/17-provider-normalization-and-media-gateway.md` and `.env.example`.
+
+
+## Patch 7 — Authorized Source Qualification & Golden Reference Gate
+
+Patch 7 adds `backend/source_qualification.py` and `scripts/qualify_adapter_source.py`. The CLI validates a captured normalized comment response and the exact media bytes without making network requests or spending API credits. It distinguishes a metadata-only source from one that has actually delivered valid WebP bytes. See `docs/18-authorized-source-qualification.md` for documented TikTok Research API limitations, source eligibility, usage, and the Golden Reference procedure. The backend suite now contains 98 tests. This patch does not implement or enable an independent TikTok scraper.
