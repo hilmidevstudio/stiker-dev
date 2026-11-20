@@ -1,6 +1,12 @@
 import unittest
+import os
 
-from backend.extractor_adapter import ScrapeCreatorsAdapter
+
+from backend.extractor_adapter import (
+    ScrapeCreatorsAdapter,
+    DisabledExtractorAdapter,
+    get_extractor_adapter,
+)
 
 
 class TestScrapeCreatorsAdapter(unittest.TestCase):
@@ -35,6 +41,22 @@ class TestScrapeCreatorsAdapter(unittest.TestCase):
             },
         }
         self.assertIsNone(self.adapter.parse_sticker(comment))
+
+    def test_provider_defaults_to_disabled_even_when_paid_key_exists(self):
+        old_provider = os.environ.pop("EXTRACTION_PROVIDER", None)
+        old_key = os.environ.get("SCRAPECREATORS_API_KEY")
+        try:
+            os.environ["SCRAPECREATORS_API_KEY"] = "present-but-must-not-auto-enable"
+            adapter = get_extractor_adapter()
+            self.assertIsInstance(adapter, DisabledExtractorAdapter)
+            self.assertEqual(adapter.provider_name, "disabled")
+        finally:
+            if old_provider is not None:
+                os.environ["EXTRACTION_PROVIDER"] = old_provider
+            if old_key is None:
+                os.environ.pop("SCRAPECREATORS_API_KEY", None)
+            else:
+                os.environ["SCRAPECREATORS_API_KEY"] = old_key
 
 
 if __name__ == "__main__":

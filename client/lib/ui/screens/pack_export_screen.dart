@@ -141,6 +141,8 @@ class _PackExportScreenState extends State<PackExportScreen> {
         } else {
           final isInstalled =
               await _intentBridge.isWhatsAppInstalled(WhatsAppVariant.any);
+          if (!mounted) return;
+
           if (isInstalled) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Impor stiker dibatalkan di WhatsApp.')),

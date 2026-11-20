@@ -60,7 +60,7 @@ class ExtractionProviderAdapter(ABC):
             if url_list and isinstance(url_list, list):
                 animated_url = url_list[0]
 
-        is_animated = bool(animated_url) or sticker_type == 2
+        is_animated = bool(animated_url)
 
         width = None
         height = None

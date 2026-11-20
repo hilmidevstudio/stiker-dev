@@ -76,6 +76,32 @@ class TestMediaValidator(unittest.TestCase):
         self.assertFalse(meta.whatsapp_compliant)
         self.assertTrue(any("exceeds WhatsApp 500 KB limit" in issue for issue in meta.compliance_issues))
 
+    def test_static_binary_overrides_animation_metadata_hints(self):
+        # The binary container is authoritative: no ANIM/ANMF and no animation flag.
+        webp_bytes = self.processor.create_synthetic_static_webp(width=458, height=498)
+        meta = self.parser.parse(webp_bytes)
+        self.assertTrue(meta.is_valid_webp)
+        self.assertFalse(meta.is_animated)
+        self.assertEqual(meta.frame_count, 1)
+        self.assertEqual(meta.duration_ms, 0)
+        self.assertEqual(meta.width, 458)
+        self.assertEqual(meta.height, 498)
+
+    def test_reject_riff_size_mismatch(self):
+        webp_bytes = bytearray(self.processor.create_synthetic_static_webp())
+        webp_bytes[4] = (webp_bytes[4] + 1) & 0xFF
+        meta = self.parser.parse(bytes(webp_bytes))
+        self.assertFalse(meta.is_valid_webp)
+        self.assertTrue(any("RIFF size mismatch" in issue for issue in meta.compliance_issues))
+
+    def test_reject_animation_flag_without_anim_frames(self):
+        webp_bytes = bytearray(self.processor.create_synthetic_static_webp())
+        # Set VP8X animation flag but deliberately omit ANIM and ANMF chunks.
+        webp_bytes[20] |= 0x02
+        meta = self.parser.parse(bytes(webp_bytes))
+        self.assertFalse(meta.is_valid_webp)
+        self.assertTrue(any("animation flag" in issue for issue in meta.compliance_issues))
+
 
 if __name__ == "__main__":
     unittest.main()

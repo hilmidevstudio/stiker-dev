@@ -1,5 +1,7 @@
 # StickerDrop — Research, Reverse Engineering & System Engineering
 
+> **Current engineering status — Patch 3 (20 Nov 2026):** the backend now has a provider-neutral comment-discovery engine, cursor pagination, safe extraction-provider default (`EXTRACTION_PROVIDER=disabled`), and binary-based WebP inspection in the Flutter save path. The Python backend suite passes **55/55** in the build environment. The independent TikTok sticker-data adapter is **not implemented yet**, so live sticker extraction is intentionally disabled until an authorized source is connected and validated. This is an engineering foundation, not a public-release build. See `PATCH_3_ENGINE_FOUNDATION.md` and `docs/16-independent-extraction-adapter-contract.md`.
+
 StickerDrop is an Android application concept engineered to extract stickers attached to TikTok comments and export them directly into WhatsApp sticker packs.
 
 This repository hosts the **technical validation, reverse engineering, underlying system architecture, data models, processing engine, storage layer, and WhatsApp pack generator** for StickerDrop prior to mobile client development.
@@ -27,7 +29,8 @@ c:\stiker-dev\
 ├── backend/                            # FastAPI Backend Microservice
 │   ├── main.py                         # App entry point, CORS & global error handling
 │   ├── link_resolver.py                # Asynchronous TikTok short URL cleaner & resolver
-│   ├── extractor_adapter.py            # ScrapeSocial/ScrapeCreators/Mock provider adapters
+│   ├── extractor_adapter.py            # Pluggable adapters; safe default is disabled
+│   ├── comment_discovery.py             # Provider-neutral cursor/reply discovery engine
 │   └── schemas.py                      # Pydantic v2 schemas for requests & responses
 │
 ├── docs/                               # Comprehensive Technical Specifications
@@ -49,7 +52,7 @@ c:\stiker-dev\
 ├── client/                             # Flutter Android Application (com.stickerdrop.app)
 │   ├── android/                        # Android Native with WhatsApp ContentProvider & MethodChannel
 │   ├── lib/                            # UI Layer (Input, Collection, Export) & Domain Features
-│   └── test/                           # 45 Automated unit and E2E integration tests (100% Pass)
+│   └── test/                           # Flutter unit/E2E tests; run `flutter test` on the development machine
 │
 ├── research/                           # Research Artifacts & Live Traces
 │   ├── api-responses/                  # Raw and sanitized API responses
@@ -82,7 +85,17 @@ c:\stiker-dev\
 
 ---
 
-## 3. Quickstart & Verification
+## 3. Current extraction safety state
+
+The backend now defaults to `EXTRACTION_PROVIDER=disabled`. This is deliberate: a leftover API key must not silently activate a billable provider. Link resolution remains available at `POST /v1/resolve-link`; sticker extraction returns `503 EXTRACTION_SOURCE_NOT_CONFIGURED` until an authorized adapter is connected. Check `GET /v1/extraction-status` to inspect the current adapter state without making an upstream request.
+
+The provider-neutral `CommentDiscoveryEngine` handles top-level cursor pagination, reply previews, prioritization using comment-author hints, and paginated reply threads. If configured limits are reached, the API returns `503 COMMENT_SEARCH_INCOMPLETE`, not a misleading `404`.
+
+The mobile client inspects the downloaded RIFF/WebP bytes before saving. Static vs animated classification, extension, frame count, duration, and dimensions are derived from the media binary rather than provider metadata.
+
+See `PATCH_3_ENGINE_FOUNDATION.md` and `docs/16-independent-extraction-adapter-contract.md` before deployment or when connecting a future data source.
+
+## 4. Quickstart & Verification
 
 ### Run FastAPI Backend Server
 ```powershell
@@ -96,16 +109,12 @@ c:\stiker-dev\
 .venv\Scripts\python.exe scripts/test_server_live.py
 ```
 
-### Run All Unit & Integration Tests (100% Offline / Sandboxed)
+### Run All Python Unit & Integration Tests (offline fixtures)
 ```powershell
 python scripts/run_tests.py
 ```
+The Patch 3 backend/core suite currently passes 55 tests. Flutter tests must also be run from `client/` on a machine with the Flutter SDK installed.
 
-### Run Live End-to-End Extraction Test (Requires API Key)
-```powershell
-# 1. Set environment variable
-$env:SCRAPESOCIAL_API_KEY="your_api_key_here"
+### Provider opt-in
 
-# 2. Execute live test harness against target comment 7708394712596972308
-python scripts/live_extraction_test.py
-```
+Do not run live extraction or set a paid provider unless you intentionally authorize the associated cost. A paid legacy adapter is enabled only by explicitly setting `EXTRACTION_PROVIDER=scrapecreators` or `scrapesocial` on the backend. The default is `disabled`. The future independent adapter must implement the contract in `docs/16-independent-extraction-adapter-contract.md` and must be authorized for the intended use.

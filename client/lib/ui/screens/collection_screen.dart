@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -107,6 +109,59 @@ class _CollectionScreenState extends State<CollectionScreen> {
         );
       }
     }
+  }
+
+  Future<void> _copyStickerDiagnostics(
+    StickerModel sticker,
+    BuildContext sheetContext,
+  ) async {
+    // Deliberately exclude originalMediaUrl: CDN URLs may contain temporary
+    // access tokens. This report contains metadata only, not media bytes.
+    final report = <String, dynamic>{
+      'diagnostic_version': 1,
+      'captured_at_utc': DateTime.now().toUtc().toIso8601String(),
+      'application_id': 'com.stickerdrop.app',
+      'sticker': {
+        'id': sticker.id,
+        'internal_id': sticker.internalId,
+        'source_platform': sticker.sourcePlatform,
+        'source_video_id': sticker.sourceVideoId,
+        'source_comment_id': sticker.sourceCommentId,
+        'source_author': sticker.sourceAuthor,
+        'sticker_id': sticker.stickerId,
+        'local_media_path': sticker.localMediaPath,
+        'media_type': sticker.mediaType,
+        'is_animated': sticker.isAnimated,
+        'width': sticker.width,
+        'height': sticker.height,
+        'file_size': sticker.fileSize,
+        'frame_count': sticker.frameCount,
+        'duration_ms': sticker.durationMs,
+        'sha256': sticker.sha256,
+        'export_status': sticker.exportStatus,
+        'created_at': sticker.createdAt,
+        'updated_at': sticker.updatedAt,
+        'original_media_url_present': sticker.originalMediaUrl.isNotEmpty,
+      },
+    };
+
+    await Clipboard.setData(
+      ClipboardData(text: const JsonEncoder.withIndent('  ').convert(report)),
+    );
+
+    if (!mounted || !sheetContext.mounted) return;
+    Navigator.of(sheetContext).pop();
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('Sticker diagnostic metadata copied.'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(IosTokens.radiusMd),
+          ),
+        ),
+      );
   }
 
   void _showStickerDetails(StickerModel sticker) {
@@ -234,6 +289,26 @@ class _CollectionScreenState extends State<CollectionScreen> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: OutlinedButton.icon(
+                  onPressed: () => _copyStickerDiagnostics(sticker, ctx),
+                  icon: const Icon(Icons.data_object_rounded, size: 18),
+                  label: const Text(
+                    'Copy diagnostic metadata',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: IosTokens.tint,
+                    side: const BorderSide(color: IosTokens.hairline),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(IosTokens.radiusMd),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),

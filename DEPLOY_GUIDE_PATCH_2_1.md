@@ -1,3 +1,5 @@
+> SUPERSEDED: Use `PATCH_3_ENGINE_FOUNDATION.md` for current safe provider configuration and deployment. This older guide documents the previous paid-provider setup.
+
 # StickerDrop Patch 2.1 — deploy and Android release guide
 
 ## Important status before deployment

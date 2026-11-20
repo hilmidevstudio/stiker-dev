@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exceptions.dart';
 import '../models/extraction_response.dart';
+import 'webp_inspector.dart';
 
 /// Service managing extraction operations via Backend Proxy
 class ExtractionService {
@@ -56,14 +57,13 @@ class ExtractionService {
       }
 
       final bytes = response.bodyBytes;
-      final isWebP = bytes.length >= 12 &&
-          bytes[0] == 0x52 && bytes[1] == 0x49 &&
-          bytes[2] == 0x46 && bytes[3] == 0x46 &&
-          bytes[8] == 0x57 && bytes[9] == 0x45 &&
-          bytes[10] == 0x42 && bytes[11] == 0x50;
-      if (!isWebP) {
-        throw const ApiException(
-          'Downloaded media is not a valid WebP sticker.',
+      try {
+        // The provider's sticker_type, URL suffix, and MIME hint are not
+        // authoritative. Inspect the actual RIFF/WebP bytes before saving.
+        WebPInspector.inspect(bytes);
+      } on FormatException catch (e) {
+        throw ApiException(
+          'Downloaded media is not a structurally valid WebP sticker: ${e.message}',
           errorCode: 'INVALID_MEDIA_FILE',
           statusCode: 502,
         );

@@ -25,11 +25,16 @@ from .link_resolver import (
     MissingCommentIdException,
 )
 from .extractor_adapter import (
-    ExtractorAdapter,
     get_extractor_adapter,
+    get_extraction_provider_status,
     ExtractionException,
     CommentNotFoundException,
     StickerNotFoundException,
+)
+from .comment_discovery import (
+    CommentDiscoveryEngine,
+    CommentSearchIncompleteException,
+    DiscoveryLimits,
 )
 
 # Configure logging
@@ -38,6 +43,10 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger("stickerdrop.backend")
+# httpx INFO logs include complete request URLs. TikTok share redirects may contain
+# user/share identifiers and signed query parameters, so log only our sanitized stages.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
 @asynccontextmanager
@@ -51,7 +60,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="StickerDrop Backend API",
     description="TikTok comment sticker extraction and media normalization service",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan
 )
 
@@ -90,7 +99,7 @@ async def extraction_exception_handler(request: Request, exc: ExtractionExceptio
         success=False,
         error_code=exc.error_code,
         message=exc.message,
-        details={"path": request.url.path}
+        details=exc.details or {"path": request.url.path}
     )
     return JSONResponse(status_code=exc.status_code, content=error_payload.model_dump())
 
@@ -124,97 +133,51 @@ async def generic_exception_handler(request: Request, exc: Exception):
 # ---------------------------------------------------------------------------
 async def process_resolve_and_extract(
     url: str,
-    max_comment_pages: int = 5
+    max_comment_pages: Optional[int] = None,
 ) -> ResolveAndExtractResponse:
-    """
-    Shared business logic for resolving a TikTok comment link and extracting its sticker.
+    """Resolve the link, discover the exact comment, then parse its sticker metadata.
+
+    Discovery is provider-neutral. The currently configured adapter supplies pages;
+    this orchestration layer owns cursor traversal, exact matching, and search limits.
     """
     resolver = TikTokLinkResolver()
-    # The provider is selected by server configuration only. Never let a public
-    # client request switch production traffic to a mock or alternate provider.
-    adapter = get_extractor_adapter()
     target: ResolvedTarget = await resolver.resolve(url)
 
-    # For resolved targets with no comment_id (e.g. canonical video link, no share_comment_id param),
-    # always raise — even in MockProvider. The user must share the specific comment link.
     if not target.comment_id:
         raise MissingCommentIdException()
+
+    # The factory is fail-closed by default. It will not infer a paid provider merely
+    # because an API key happens to exist in the deployment environment.
+    adapter = get_extractor_adapter()
     logger.info(
-        f"Processing extraction for Video: {target.video_id}, Comment: {target.comment_id} "
-        f"using provider: {adapter.provider_name}"
+        "Processing extraction for post=%s comment=%s provider=%s",
+        target.video_id,
+        target.comment_id,
+        adapter.provider_name,
     )
 
-    matched_comment: Optional[Dict[str, Any]] = None
-    cursor = 0
-    pages_checked = 0
-
-    # Phase 1: Search top-level comments & their reply_comment previews
-    parent_cids_with_replies = []
-    while pages_checked < max_comment_pages:
-        data = await adapter.fetch_comments(
-            video_url=target.canonical_url,
-            cursor=cursor,
-            count=50
+    limits = DiscoveryLimits.from_environment()
+    if max_comment_pages is not None:
+        limits = DiscoveryLimits(
+            max_comment_pages=max_comment_pages,
+            max_reply_parents=limits.max_reply_parents,
+            max_reply_pages_per_parent=limits.max_reply_pages_per_parent,
         )
-        comments = data.get("comments") or []
-        for c in comments:
-            cid = str(c.get("cid") or c.get("id") or "")
-            if cid == target.comment_id:
-                matched_comment = c
-                break
 
-            # Check inside reply_comment previews (TikTok attaches up to 3 previews in parent)
-            replies_preview = c.get("reply_comment") or []
-            for rep in replies_preview:
-                rcid = str(rep.get("cid") or rep.get("id") or "")
-                if rcid == target.comment_id:
-                    matched_comment = rep
-                    break
-            if matched_comment:
-                break
+    discovery = await CommentDiscoveryEngine(limits).find_comment(
+        adapter,
+        video_url=target.canonical_url,
+        target_comment_id=target.comment_id,
+        target_author_id=target.author_id,
+    )
+    matched_comment = discovery.comment
+    logger.info("Comment discovery completed: %s", discovery.stats.to_dict())
 
-            if (c.get("reply_comment_total", 0) > 0 or len(replies_preview) > 0) and cid:
-                if cid not in parent_cids_with_replies:
-                    parent_cids_with_replies.append(cid)
-
-        if matched_comment:
-            break
-
-        has_more = bool(data.get("has_more", False))
-        next_cursor = data.get("cursor")
-        if not has_more or next_cursor is None or next_cursor == cursor:
-            break
-
-        cursor = next_cursor
-        pages_checked += 1
-
-    # Phase 2: If not found in top-level or previews, search comment reply threads concurrently
     if not matched_comment:
-        logger.info(f"Comment {target.comment_id} not found in top-level or previews. Checking reply threads...")
-        
-        # Search candidate parent threads sequentially. Each provider replies request may be billable,
-        # so do not fire all candidate requests concurrently when the first successful response is enough.
-        if not matched_comment and parent_cids_with_replies:
-            for parent_cid in parent_cids_with_replies[:4]:
-                try:
-                    r_data = await adapter.fetch_replies(
-                        comment_id=parent_cid,
-                        video_url=target.canonical_url
-                    )
-                    for reply in r_data.get("comments") or []:
-                        if str(reply.get("cid") or reply.get("id") or "") == target.comment_id:
-                            matched_comment = reply
-                            break
-                    if matched_comment:
-                        break
-                except Exception as e:
-                    logger.warning(f"Reply lookup for parent {parent_cid} failed: {str(e)}")
-
-    # Never fabricate a comment or media URL. A miss must remain an explicit failure.
-    if not matched_comment:
+        if not discovery.stats.complete:
+            raise CommentSearchIncompleteException(discovery.stats)
         raise CommentNotFoundException(target.comment_id)
 
-    # Phase 3: Parse sticker metadata
     sticker = adapter.parse_sticker(matched_comment)
     if not sticker:
         raise StickerNotFoundException(target.comment_id)
@@ -223,7 +186,7 @@ async def process_resolve_and_extract(
 
     return ResolveAndExtractResponse(
         success=True,
-        message="Sticker extracted successfully",
+        message="Sticker metadata extracted successfully",
         video_id=target.video_id,
         comment_id=target.comment_id,
         canonical_url=target.canonical_url,
@@ -232,7 +195,7 @@ async def process_resolve_and_extract(
         digg_count=int(matched_comment.get("digg_count", 0)),
         author=author,
         sticker=sticker,
-        provider_used=adapter.provider_name
+        provider_used=adapter.provider_name,
     )
 
 
@@ -243,13 +206,14 @@ async def process_resolve_and_extract(
 async def root():
     return {
         "service": "StickerDrop Backend API",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "status": "online",
         "documentation": "/docs",
         "endpoints": {
             "POST /v1/resolve-link": "Resolve TikTok share URL without calling an extraction provider",
-            "POST /v1/resolve-and-extract": "Resolve TikTok comment link and extract sticker",
+            "POST /v1/resolve-and-extract": "Resolve TikTok comment link and discover sticker metadata",
             "GET /v1/resolve-and-extract": "Resolve TikTok comment link via query parameter ?url=...",
+            "GET /v1/extraction-status": "Report configured extraction adapter without making a provider request",
             "GET /health": "Server health status"
         }
     }
@@ -262,6 +226,12 @@ async def health_check():
         "service": "StickerDrop Backend",
         "cors_enabled": True
     }
+
+
+@app.get("/v1/extraction-status", tags=["Diagnostics"])
+async def extraction_status():
+    """Expose provider selection only; never disclose secrets or make network calls."""
+    return get_extraction_provider_status()
 
 
 @app.post("/v1/resolve-link", tags=["Diagnostics"])

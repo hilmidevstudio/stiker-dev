@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:path/path.dart' as p;
@@ -9,6 +10,7 @@ import 'package:test/test.dart';
 import 'package:client/core/database/database_helper.dart';
 import 'package:client/core/network/api_client.dart';
 import 'package:client/features/extraction/services/extraction_service.dart';
+import 'package:client/features/extraction/services/webp_inspector.dart';
 import 'package:client/features/collection/models/sticker_model.dart';
 import 'package:client/features/collection/repositories/sticker_repository.dart';
 import 'package:client/features/collection/repositories/pack_repository.dart';
@@ -78,7 +80,20 @@ void main() {
       'provider_used': 'MockProvider',
     };
 
-    final fakeBinaryBytes = List<int>.generate(2048, (i) => (i * 7) % 256);
+    // Real two-frame animated WebP fixtures. The media validator correctly
+    // rejects arbitrary/random bytes, so the E2E test must serve valid WebP.
+    final animatedWebpFixtures = <List<int>>[
+      base64Decode(
+        'UklGRoQAAABXRUJQVlA4WAoAAAACAAAADwAADwAAQU5JTQYAAAAAAAAAAABBTk1GKAAAAAAAAAAAAA8AAA8AAHgAAAJWUDhMDwAAAC8PwAMABxD9j/4HIqL/AQBBTk1GKAAAAAAAAAAAAA8AAA8AAHgAAABWUDhMDwAAAC8PwAMABxDR//4HIqL/AQA=',
+      ),
+      base64Decode(
+        'UklGRoQAAABXRUJQVlA4WAoAAAACAAAADwAADwAAQU5JTQYAAAAAAAAAAABBTk1GKAAAAAAAAAAAAA8AAA8AAHgAAAJWUDhMDwAAAC8PwAMAB9D/iP4HIqL/AQBBTk1GKAAAAAAAAAAAAA8AAA8AAHgAAABWUDhMEAAAAC8PwAMAB9D//kf/AxHR/wA=',
+      ),
+      base64Decode(
+        'UklGRoQAAABXRUJQVlA4WAoAAAACAAAADwAADwAAQU5JTQYAAAAAAAAAAABBTk1GKAAAAAAAAAAAAA8AAA8AAHgAAAJWUDhMEAAAAC8PwAMABxD973//AxHR/wBBTk1GKAAAAAAAAAAAAA8AAA8AAHgAAABWUDhMEAAAAC8PwAMAB9D/6H//AxHR/wA=',
+      ),
+    ];
+    final fakeBinaryBytes = animatedWebpFixtures.first;
 
     final mockHttpClient = MockClient((request) async {
       if (request.url.path.contains('resolve-and-extract')) {
@@ -101,14 +116,20 @@ void main() {
 
     // Download bytes
     final downloadedBytes = await extractionService.downloadMedia(extraction.sticker.mediaUrl);
-    expect(downloadedBytes.length, equals(2048));
+    expect(downloadedBytes.length, greaterThan(12));
+    expect(ascii.decode(downloadedBytes.sublist(0, 4)), equals('RIFF'));
+    expect(ascii.decode(downloadedBytes.sublist(8, 12)), equals('WEBP'));
+    final mediaInfo = WebPInspector.inspect(Uint8List.fromList(downloadedBytes));
+    expect(mediaInfo.isAnimated, isTrue);
+    expect(mediaInfo.frameCount, equals(2));
 
     // -------------------------------------------------------------
     // Step 2: Media Storage via SHA-256 Storage Manager
+    // Classification and extension come from the binary, not API hints.
     // -------------------------------------------------------------
     final storageResult = await storageManager.saveMediaBytes(
       bytes: downloadedBytes,
-      extension: extraction.sticker.format,
+      extension: mediaInfo.extension,
     );
     expect(storageResult.isExistingFile, isFalse);
     expect(storageResult.sha256, hasLength(64));
@@ -124,11 +145,13 @@ void main() {
       stickerId: extraction.sticker.stickerId,
       originalMediaUrl: extraction.sticker.mediaUrl,
       localMediaPath: storageResult.relativePath,
-      mediaType: 'image/awebp',
-      isAnimated: true,
-      width: extraction.sticker.width,
-      height: extraction.sticker.height,
+      mediaType: mediaInfo.mimeType,
+      isAnimated: mediaInfo.isAnimated,
+      width: mediaInfo.width,
+      height: mediaInfo.height,
       fileSize: storageResult.fileSize,
+      frameCount: mediaInfo.frameCount,
+      durationMs: mediaInfo.durationMs,
       sha256: storageResult.sha256,
     ));
 
@@ -140,7 +163,7 @@ void main() {
 
     // Add 2 more distinct stickers to fulfill WhatsApp min 3 stickers requirement
     for (int i = 2; i <= 3; i++) {
-      final dummyBytes = List<int>.generate(1024, (j) => (j + i * 13) % 256);
+      final dummyBytes = animatedWebpFixtures[i - 1];
       final res = await storageManager.saveMediaBytes(bytes: dummyBytes, extension: 'awebp');
       await stickerRepo.insertSticker(StickerModel(
         sourceVideoId: 'video_$i',

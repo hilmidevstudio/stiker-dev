@@ -5,6 +5,7 @@ import '../../core/theme/ios_tokens.dart';
 import '../../core/network/api_exceptions.dart';
 import '../../features/extraction/models/extraction_response.dart';
 import '../../features/extraction/services/extraction_service.dart';
+import '../../features/extraction/services/webp_inspector.dart';
 import '../../features/collection/models/sticker_model.dart';
 import '../../features/collection/repositories/sticker_repository.dart';
 import '../../features/collection/storage/sha256_storage_manager.dart';
@@ -95,11 +96,13 @@ class _InputScreenState extends State<InputScreen> {
       // 1. Download media bytes from CDN
       final mediaUrl = res.sticker.mediaUrl;
       final bytes = await _extractionService.downloadMedia(mediaUrl);
+      final mediaInfo = WebPInspector.inspect(bytes);
 
-      // 2. Save file via SHA-256 Content-Addressed Storage (ADR-005 Gate 2)
+      // The downloaded binary is the source of truth. Provider metadata and URL
+      // suffixes can incorrectly label a static WebP as animated AWEBP.
       final storageResult = await storageManager.saveMediaBytes(
         bytes: bytes,
-        extension: res.sticker.format,
+        extension: mediaInfo.extension,
       );
 
       // 3. Insert or Deduplicate into SQLite Repository (ADR-002 & ADR-005)
@@ -110,11 +113,13 @@ class _InputScreenState extends State<InputScreen> {
         stickerId: res.sticker.stickerId,
         originalMediaUrl: res.sticker.mediaUrl,
         localMediaPath: storageResult.relativePath,
-        mediaType: res.sticker.isAnimated ? 'image/awebp' : 'image/webp',
-        isAnimated: res.sticker.isAnimated,
-        width: res.sticker.width,
-        height: res.sticker.height,
+        mediaType: mediaInfo.mimeType,
+        isAnimated: mediaInfo.isAnimated,
+        width: mediaInfo.width,
+        height: mediaInfo.height,
         fileSize: storageResult.fileSize,
+        frameCount: mediaInfo.frameCount,
+        durationMs: mediaInfo.durationMs,
         sha256: storageResult.sha256,
       );
 

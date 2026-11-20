@@ -1,0 +1,35 @@
+{
+  "fixture_name": "golden_naruto_comment_sticker",
+  "status": "verified_from_user_device_database_and_media_bytes",
+  "source": {
+    "platform": "tiktok",
+    "short_url": "https://vt.tiktok.com/ZS9PN7MkrbuMs-swyrV/",
+    "post_id": "7700924470206156050",
+    "post_type": "video",
+    "comment_id": "7700946321838818056",
+    "author_handle": "@bang_zie019",
+    "sticker_id": "82731571255811"
+  },
+  "media": {
+    "sha256": "b39c96a52d3ce821d0f48c8fb590e25404ca6758a8fbffe11737b867b9cca878",
+    "format": "webp",
+    "mime_type": "image/webp",
+    "is_animated": false,
+    "width": 458,
+    "height": 498,
+    "file_size": 13230,
+    "chunks": [
+      "VP8X",
+      "ALPH",
+      "VP8 "
+    ],
+    "frame_count": 1,
+    "duration_ms": 0,
+    "cdn_host": "p16-tiktok-dm-sticker-sign.tiktokcdn-us.com"
+  },
+  "notes": [
+    "The media bytes were pulled from the user's app-private media directory and SHA-256 matched the SQLite record.",
+    "The media was previously mislabeled animated in SQLite; its actual RIFF/WebP chunks indicate static WebP.",
+    "No signed CDN URL, request signature, or access token is stored in this fixture."
+  ]
+}

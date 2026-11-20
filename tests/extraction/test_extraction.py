@@ -109,6 +109,20 @@ class TestStickerExtraction(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertIn("was not found", result.error_message)
 
+    def test_sticker_type_hint_without_animated_asset_is_static(self):
+        comment = {
+            "cid": "static-hint-only",
+            "cmt_sticker_struct": {
+                "sticker_id": "static-1",
+                "sticker_type": 2,
+                "static_url": {"url_list": ["https://cdn.example.test/sticker.webp"]},
+            },
+        }
+        parsed = self.adapter.parse_sticker(comment)
+        self.assertIsNotNone(parsed)
+        self.assertFalse(parsed.is_animated)
+        self.assertEqual(parsed.best_url, "https://cdn.example.test/sticker.webp")
+
 
 if __name__ == "__main__":
     unittest.main()

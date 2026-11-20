@@ -19,7 +19,9 @@ class TestBackendAPI(unittest.TestCase):
 
     def setUp(self):
         self._previous_provider = os.environ.get("EXTRACTION_PROVIDER")
+        self._previous_app_env = os.environ.get("APP_ENV")
         os.environ["EXTRACTION_PROVIDER"] = "mock"
+        os.environ["APP_ENV"] = "test"
         self.client = TestClient(app)
 
     def tearDown(self):
@@ -27,6 +29,10 @@ class TestBackendAPI(unittest.TestCase):
             os.environ.pop("EXTRACTION_PROVIDER", None)
         else:
             os.environ["EXTRACTION_PROVIDER"] = self._previous_provider
+        if self._previous_app_env is None:
+            os.environ.pop("APP_ENV", None)
+        else:
+            os.environ["APP_ENV"] = self._previous_app_env
 
     def test_root_endpoint(self):
         response = self.client.get("/")
@@ -184,6 +190,36 @@ class TestBackendAPI(unittest.TestCase):
         self.assertEqual(data["comment_id"], "7709899214972928776")
         self.assertIn("/photo/7709797914675121428", data["canonical_url"])
 
+
+    def test_extraction_status_reports_mock_without_calling_provider(self):
+        response = self.client.get("/v1/extraction-status")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["provider"], "mock")
+        self.assertFalse(data["provider_called"])
+        self.assertFalse(data["external_credit_provider"])
+
+    def test_disabled_provider_fails_closed_without_using_api_key(self):
+        previous_provider = os.environ.get("EXTRACTION_PROVIDER")
+        previous_key = os.environ.get("SCRAPECREATORS_API_KEY")
+        try:
+            os.environ["EXTRACTION_PROVIDER"] = "disabled"
+            os.environ["SCRAPECREATORS_API_KEY"] = "deliberately-present-test-key"
+            response = self.client.post(
+                "/v1/resolve-and-extract",
+                json={"url": "https://www.tiktok.com/@sample/video/1234567890123456789?share_comment_id=9876543210987654321"},
+            )
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(response.json()["error_code"], "EXTRACTION_SOURCE_NOT_CONFIGURED")
+        finally:
+            if previous_provider is None:
+                os.environ.pop("EXTRACTION_PROVIDER", None)
+            else:
+                os.environ["EXTRACTION_PROVIDER"] = previous_provider
+            if previous_key is None:
+                os.environ.pop("SCRAPECREATORS_API_KEY", None)
+            else:
+                os.environ["SCRAPECREATORS_API_KEY"] = previous_key
 
 
 if __name__ == "__main__":

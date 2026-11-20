@@ -74,7 +74,6 @@ void main() {
 
       final result = await apiClient.resolveAndExtract(
         url: 'https://vt.tiktok.com/ZS9f3yqSf57UR-naeU1/',
-        provider: 'mock',
       );
 
       expect(result['success'], isTrue);

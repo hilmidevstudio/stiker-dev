@@ -21,8 +21,8 @@
     },
     "linking_enabled": false
   },
-  "out_dir_shared": "G:\\My Drive\\stiker-dev\\client\\.dart_tool\\hooks_runner\\shared\\sqlite3\\build\\",
-  "out_file": "G:\\My Drive\\stiker-dev\\client\\.dart_tool\\hooks_runner\\sqlite3\\3b599db413\\output.json",
+  "out_dir_shared": "C:\\stiker-dev\\client\\.dart_tool\\hooks_runner\\shared\\sqlite3\\build\\",
+  "out_file": "C:\\stiker-dev\\client\\.dart_tool\\hooks_runner\\sqlite3\\3b599db413\\output.json",
   "package_name": "sqlite3",
   "package_root": "C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\sqlite3-3.9.1\\",
   "user_defines": {}

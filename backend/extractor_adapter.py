@@ -18,17 +18,35 @@ load_dotenv()
 # Domain Exceptions
 class ExtractionException(Exception):
     """Base exception for extraction errors."""
-    def __init__(self, message: str, error_code: str = "EXTRACTION_ERROR", status_code: int = 502):
+    def __init__(
+        self,
+        message: str,
+        error_code: str = "EXTRACTION_ERROR",
+        status_code: int = 502,
+        details: Optional[Dict[str, Any]] = None,
+    ):
         super().__init__(message)
         self.message = message
         self.error_code = error_code
         self.status_code = status_code
+        self.details = details
 
 
 class ProviderAuthException(ExtractionException):
     """Raised when third-party API credentials are missing, invalid, or unauthorized."""
     def __init__(self, message: str = "Extraction provider authentication failed. Check API key configuration."):
         super().__init__(message, error_code="PROVIDER_AUTH_ERROR", status_code=500)
+
+
+class ExtractionSourceUnavailableException(ExtractionException):
+    """No live extraction adapter is configured; fail closed without upstream calls."""
+    def __init__(self):
+        super().__init__(
+            "No extraction source is configured. Link resolution is available, "
+            "but sticker extraction is disabled until an authorized adapter is connected.",
+            error_code="EXTRACTION_SOURCE_NOT_CONFIGURED",
+            status_code=503,
+        )
 
 
 class CommentNotFoundException(ExtractionException):
@@ -174,6 +192,19 @@ class ExtractorAdapter(ABC):
             nickname=user.get("nickname", "anonymous"),
             avatar_url=avatar_url
         )
+
+
+class DisabledExtractorAdapter(ExtractorAdapter):
+    """Fail-closed adapter; performs no network request and consumes no provider credits."""
+    @property
+    def provider_name(self) -> str:
+        return "disabled"
+
+    async def fetch_comments(self, video_url: str, cursor: Any = 0, count: int = 50) -> Dict[str, Any]:
+        raise ExtractionSourceUnavailableException()
+
+    async def fetch_replies(self, comment_id: str, video_url: str, cursor: Any = 0) -> Dict[str, Any]:
+        raise ExtractionSourceUnavailableException()
 
 
 class ScrapeSocialAdapter(ExtractorAdapter):
@@ -365,24 +396,60 @@ class MockExtractorAdapter(ExtractorAdapter):
 
 
 def get_extractor_adapter(provider_name: Optional[str] = None) -> ExtractorAdapter:
-    """
-    Factory function to instantiate the appropriate adapter based on environment
-    or explicit parameter override.
-    """
-    target = (provider_name or os.getenv("EXTRACTION_PROVIDER") or "").lower().strip()
+    """Create exactly the provider selected by server configuration.
 
+    The safe default is disabled. Environment API keys never implicitly activate
+    billable providers; those adapters require explicit EXTRACTION_PROVIDER opt-in.
+    """
+    target = (
+        provider_name.lower().strip()
+        if provider_name is not None
+        else os.getenv("EXTRACTION_PROVIDER", "disabled").lower().strip()
+    )
+    if target in {"", "disabled", "none", "off"}:
+        return DisabledExtractorAdapter()
     if target == "mock":
+        app_env = os.getenv("APP_ENV", "production").lower().strip()
+        if app_env not in {"test", "development", "local"}:
+            raise ExtractionException(
+                "Mock extraction is permitted only in test/development environments.",
+                error_code="MOCK_PROVIDER_NOT_ALLOWED",
+                status_code=403,
+            )
         return MockExtractorAdapter()
-    elif target == "scrapecreators":
+    if target == "scrapecreators":
         return ScrapeCreatorsAdapter()
-    elif target == "scrapesocial":
+    if target == "scrapesocial":
         return ScrapeSocialAdapter()
-    else:
-        # Default priority: ScrapeCreators first (our active provider with credits)
-        if os.getenv("SCRAPECREATORS_API_KEY"):
-            return ScrapeCreatorsAdapter()
-        elif os.getenv("SCRAPESOCIAL_API_KEY"):
-            return ScrapeSocialAdapter()
-        else:
-            # Default to ScrapeCreators
-            return ScrapeCreatorsAdapter()
+    raise ExtractionException(
+        f"Unsupported EXTRACTION_PROVIDER value: {target!r}.",
+        error_code="INVALID_EXTRACTION_PROVIDER",
+        status_code=500,
+    )
+
+
+def get_extraction_provider_status() -> Dict[str, Any]:
+    """Non-secret provider configuration status; never makes an upstream request."""
+    target = os.getenv("EXTRACTION_PROVIDER", "disabled").lower().strip() or "disabled"
+    if target in {"none", "off"}:
+        target = "disabled"
+    if target == "disabled":
+        return {"provider": "disabled", "configured": False, "ready": False,
+                "provider_called": False, "external_credit_provider": False}
+    if target == "mock":
+        app_env = os.getenv("APP_ENV", "production").lower().strip()
+        allowed = app_env in {"test", "development", "local"}
+        return {"provider": target, "configured": True, "ready": allowed,
+                "provider_called": False, "external_credit_provider": False,
+                **({} if allowed else {"configuration_error": "Mock provider is disabled outside development/test"})}
+    if target == "scrapecreators":
+        return {"provider": target, "configured": True,
+                "ready": bool(os.getenv("SCRAPECREATORS_API_KEY")),
+                "provider_called": False, "external_credit_provider": True}
+    if target == "scrapesocial":
+        return {"provider": target, "configured": True,
+                "ready": bool(os.getenv("SCRAPESOCIAL_API_KEY")),
+                "provider_called": False, "external_credit_provider": True}
+    return {"provider": target, "configured": True, "ready": False,
+            "provider_called": False, "external_credit_provider": False,
+            "configuration_error": "Unsupported EXTRACTION_PROVIDER value"}
