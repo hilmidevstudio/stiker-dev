@@ -1,77 +1,95 @@
-"""
-Test script to start uvicorn in a subprocess, hit the API endpoints, and shut down cleanly.
-Uses httpx with trust_env=False to bypass local sandbox proxy.
+"""Safe local FastAPI smoke test.
+
+Checks only /health and /v1/extraction-status. It does not send a TikTok link,
+call an extraction provider, invoke a mock sticker, or download media.
 """
 
+from __future__ import annotations
+
+import socket
 import subprocess
-import time
-import json
-import httpx
 import sys
+import time
+from pathlib import Path
 
-def main():
-    print("=" * 70)
-    print("STICKERDROP FASTAPI LIVE SERVER TEST")
-    print("=" * 70)
-    print("Starting uvicorn server on http://127.0.0.1:8000 ...")
+import httpx
 
-    proc = subprocess.Popen(
-        [r".venv\Scripts\python.exe", "-m", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", "8000"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def main() -> int:
+    port = _free_port()
+    base_url = f"http://127.0.0.1:{port}"
+    command = [
+        sys.executable,
+        "-m",
+        "uvicorn",
+        "backend.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        str(port),
+        "--no-access-log",
+    ]
+    process = subprocess.Popen(
+        command,
+        cwd=PROJECT_ROOT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
 
-    time.sleep(2.0)
     try:
-        with httpx.Client(trust_env=False, timeout=10.0) as client:
-            # Test 1: GET /health
-            print("1. Testing GET /health ...")
-            resp = client.get("http://127.0.0.1:8000/health")
-            assert resp.status_code == 200
-            print("   -> Status:", resp.status_code, resp.json())
+        deadline = time.monotonic() + 15.0
+        with httpx.Client(timeout=2.0, trust_env=False, follow_redirects=False) as client:
+            while time.monotonic() < deadline:
+                if process.poll() is not None:
+                    print("FAILED: LOCAL_BACKEND_EXITED_EARLY")
+                    return 1
+                try:
+                    health = client.get(f"{base_url}/health")
+                    if health.status_code == 200:
+                        break
+                except httpx.HTTPError:
+                    time.sleep(0.2)
+            else:
+                print("FAILED: LOCAL_BACKEND_START_TIMEOUT")
+                return 1
 
-            # Test 2: POST /v1/resolve-and-extract
-            print("2. Testing POST /v1/resolve-and-extract ...")
-            payload = {
-                "url": "https://www.tiktok.com/@nyariprompt/video/7708356144804236564?share_comment_id=7708394712596972308",
-                "provider": "mock"
-            }
-            resp2 = client.post("http://127.0.0.1:8000/v1/resolve-and-extract", json=payload)
-            assert resp2.status_code == 200
-            data2 = resp2.json()
-            print(f"   -> Status: {resp2.status_code}")
-            print(f"   -> Video ID:    {data2.get('video_id')}")
-            print(f"   -> Comment ID:  {data2.get('comment_id')}")
-            print(f"   -> Author:      @{data2.get('author', {}).get('unique_id')}")
-            print(f"   -> Sticker ID:  {data2.get('sticker', {}).get('sticker_id')}")
-            print(f"   -> Format:      {data2.get('sticker', {}).get('format')}")
-            print(f"   -> Media URL:   {data2.get('sticker', {}).get('media_url')}")
+            health_data = health.json()
+            if health_data.get("status") != "ok":
+                print("FAILED: HEALTH_RESPONSE_INVALID")
+                return 1
 
-            # Test 3: GET /v1/resolve-and-extract
-            print("3. Testing GET /v1/resolve-and-extract ...")
-            resp3 = client.get(
-                "http://127.0.0.1:8000/v1/resolve-and-extract",
-                params={
-                    "url": "https://www.tiktok.com/@nyariprompt/video/7708356144804236564?share_comment_id=7708394712596972308",
-                    "provider": "mock"
-                }
-            )
-            assert resp3.status_code == 200
-            data3 = resp3.json()
-            print(f"   -> Status: {resp3.status_code}")
-            print(f"   -> Success: {data3.get('success')}")
+            status_response = client.get(f"{base_url}/v1/extraction-status")
+            if status_response.status_code != 200:
+                print(f"FAILED: EXTRACTION_STATUS_HTTP_{status_response.status_code}")
+                return 1
+            provider_status = status_response.json()
+            if provider_status.get("provider_called") is not False:
+                print("FAILED: STATUS_ENDPOINT_CALLED_PROVIDER")
+                return 1
 
-        print("\n" + "=" * 70)
-        print("ALL FASTAPI SERVER ENDPOINTS TESTED SUCCESSFULLY!")
-        print("=" * 70)
-        return 0
-    except Exception as e:
-        print(f"\n[X] Live test failed: {e}")
-        return 1
+            print("LOCAL BACKEND SMOKE TEST: PASSED")
+            print(f"Health: {health_data.get('status')}")
+            print(f"Configured provider: {provider_status.get('provider')}")
+            print(f"Provider called: {provider_status.get('provider_called')}")
+            print("No TikTok, source-service, or paid-provider request was made.")
+            return 0
     finally:
-        proc.terminate()
-        proc.wait(timeout=3)
-        print("Server process terminated cleanly.")
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=5)
+
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

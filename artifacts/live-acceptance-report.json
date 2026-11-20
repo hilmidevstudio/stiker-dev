@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "created_at_utc": "2026-11-20T02:44:54.057033+00:00",
+  "status": "not_qualified",
+  "backend_origin": "https://web-production-96c4e94f.up.railway.app",
+  "target": {
+    "post_id": "7700924470206156050",
+    "comment_id": "7700946321838818056"
+  },
+  "provider": "disabled",
+  "billing_model": null,
+  "checks": {
+    "backend_healthy": true,
+    "authorized_source_selected": false,
+    "source_configured": false,
+    "external_credit_provider_disabled": true,
+    "post_id_matches": false,
+    "comment_id_matches": false,
+    "extraction_provider_matches": false,
+    "sticker_metadata_present": false,
+    "media_host_allowed": false,
+    "media_proxy_downloaded": false,
+    "media_webp_valid": false,
+    "expected_sha256_matches": null
+  },
+  "media": null,
+  "issues": [
+    "AUTHORIZED_SOURCE_NOT_SELECTED"
+  ]
+}

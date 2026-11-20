@@ -80,8 +80,10 @@ c:\stiker-dev\
 │   └── output/
 │
 └── scripts/                            # Operational & Diagnostic Scripts
-    ├── run_tests.py                    # Unified test runner
-    └── live_extraction_test.py         # Live end-to-end extraction harness
+    ├── run_tests.py                    # Unified offline test runner
+    ├── test_server_live.py             # Safe local health/status smoke test
+    ├── live_source_acceptance.py       # Authorized-source end-to-end acceptance
+    └── live_extraction_test.py         # Safe compatibility wrapper for Patch 9
 ```
 
 ---
@@ -105,16 +107,17 @@ See `PATCH_3_ENGINE_FOUNDATION.md` and `docs/16-independent-extraction-adapter-c
 # Interactive Swagger Documentation: http://localhost:8000/docs
 ```
 
-### Run Live Server Smoke Test
+### Run Safe Local Server Smoke Test
 ```powershell
-.venv\Scripts\python.exe scripts/test_server_live.py
+python scripts/test_server_live.py
 ```
+This checks only `/health` and `/v1/extraction-status`; it makes no TikTok or provider request.
 
 ### Run All Python Unit & Integration Tests (offline fixtures)
 ```powershell
 python scripts/run_tests.py
 ```
-The current backend/core suite passes 120 tests. Flutter tests must also be run from `client/` on a machine with the Flutter SDK installed.
+The current backend/core suite passes 137 tests (including Patch 9 live-acceptance harness tests). Flutter tests must also be run from `client/` on a machine with the Flutter SDK installed.
 
 ### Provider opt-in
 
@@ -144,3 +147,10 @@ Patch 7 adds `backend/source_qualification.py` and `scripts/qualify_adapter_sour
 ## Patch 8 — Operator-Managed Authorized Source HTTP Adapter
 
 Patch 8 adds `backend/authorized_source_adapter.py`, an HTTP bridge for a separately operated extraction source. It uses backend-only bearer credentials, requires HTTPS in production, disables redirects, bounds response size, and normalizes the two comment/reply endpoints. It does not scrape TikTok or make any provider call during tests. The source service must implement the contract in `docs/19-authorized-source-http-adapter.md` and be authorized for the intended use. Keep `EXTRACTION_PROVIDER=disabled` until a real service is deployed and passes the Patch 7 qualification gate with the Golden Reference. See `PATCH_8_INSTALL.md`.
+
+
+## Patch 9 — Live Source Acceptance Gate
+
+See `PATCH_9_INSTALL.md` and `docs/20-live-source-acceptance.md`. `scripts/live_source_acceptance.py` verifies the production path through the operator-managed `authorized_source` adapter: provider status, exact Golden post/comment IDs, media-proxy download, WebP validity, and SHA-256. It refuses to run extraction unless the backend explicitly reports `authorized_source`, `ready=true`, `external_credit_provider=false`, and `billing_model=operator_managed`. The test never calls ScrapeCreators/ScrapeSocial directly and redacts signed URLs from reports.
+
+The former `scripts/live_extraction_test.py` is now a safe wrapper; the former `scripts/test_server_live.py` only checks health and provider status. Offline suite coverage is 137 tests. These tests do not establish live TikTok extraction; only a successful run against an authorized deployed source can do that.

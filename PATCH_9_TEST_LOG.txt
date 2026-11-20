@@ -1,0 +1,174 @@
+test_arbitrary_missing_comment_is_not_synthesized (tests.backend.test_api.TestBackendAPI.test_arbitrary_missing_comment_is_not_synthesized) ... 2026-11-20 02:41:54,138 [INFO] stickerdrop.backend: Processing extraction for post=7708356144804236564 comment=8888888888888888888 provider=MockProvider
+2026-11-20 02:41:54,138 [INFO] stickerdrop.backend: Comment discovery completed: {'comment_pages': 1, 'reply_pages': 0, 'reply_parents_checked': 0, 'reply_parents_discovered': 0, 'complete': True, 'matched_in': None}
+2026-11-20 02:41:54,138 [WARNING] stickerdrop.backend: Extraction error on /v1/resolve-and-extract (COMMENT_NOT_FOUND)
+ok
+test_comment_not_found_error (tests.backend.test_api.TestBackendAPI.test_comment_not_found_error) ... 2026-11-20 02:41:54,141 [INFO] stickerdrop.backend: Processing extraction for post=7708356144804236564 comment=9999999999999999999 provider=MockProvider
+2026-11-20 02:41:54,141 [INFO] stickerdrop.backend: Comment discovery completed: {'comment_pages': 1, 'reply_pages': 0, 'reply_parents_checked': 0, 'reply_parents_discovered': 0, 'complete': True, 'matched_in': None}
+2026-11-20 02:41:54,141 [WARNING] stickerdrop.backend: Extraction error on /v1/resolve-and-extract (COMMENT_NOT_FOUND)
+ok
+test_comment_without_sticker_error (tests.backend.test_api.TestBackendAPI.test_comment_without_sticker_error) ... 2026-11-20 02:41:54,144 [INFO] stickerdrop.backend: Processing extraction for post=7708356144804236564 comment=7708111111111111111 provider=MockProvider
+2026-11-20 02:41:54,144 [INFO] stickerdrop.backend: Comment discovery completed: {'comment_pages': 1, 'reply_pages': 0, 'reply_parents_checked': 0, 'reply_parents_discovered': 0, 'complete': True, 'matched_in': 'top_level_or_reply_preview'}
+2026-11-20 02:41:54,144 [WARNING] stickerdrop.backend: Extraction error on /v1/resolve-and-extract (STICKER_NOT_FOUND)
+ok
+test_cors_headers (tests.backend.test_api.TestBackendAPI.test_cors_headers) ... ok
+test_disabled_provider_fails_closed_without_using_api_key (tests.backend.test_api.TestBackendAPI.test_disabled_provider_fails_closed_without_using_api_key) ... 2026-11-20 02:41:54,147 [INFO] stickerdrop.backend: Processing extraction for post=1234567890123456789 comment=9876543210987654321 provider=disabled
+2026-11-20 02:41:54,147 [WARNING] stickerdrop.backend: Extraction error on /v1/resolve-and-extract (EXTRACTION_SOURCE_NOT_CONFIGURED)
+ok
+test_extraction_status_reports_mock_without_calling_provider (tests.backend.test_api.TestBackendAPI.test_extraction_status_reports_mock_without_calling_provider) ... ok
+test_health_endpoint (tests.backend.test_api.TestBackendAPI.test_health_endpoint) ... ok
+test_invalid_url_error_does_not_echo_raw_input (tests.backend.test_api.TestBackendAPI.test_invalid_url_error_does_not_echo_raw_input) ... ok
+test_invalid_url_string_error (tests.backend.test_api.TestBackendAPI.test_invalid_url_string_error) ... 2026-11-20 02:41:54,155 [WARNING] stickerdrop.backend: Link resolution error on /v1/resolve-and-extract (INVALID_URL)
+ok
+test_media_proxy_rate_limit_returns_retry_after_header (tests.backend.test_api.TestBackendAPI.test_media_proxy_rate_limit_returns_retry_after_header) ... 2026-11-20 02:41:54,158 [WARNING] stickerdrop.backend: Extraction error on /v1/media-proxy (MEDIA_RATE_LIMITED)
+ok
+test_media_proxy_rejects_unapproved_host (tests.backend.test_api.TestBackendAPI.test_media_proxy_rejects_unapproved_host) ... 2026-11-20 02:41:54,160 [WARNING] stickerdrop.backend: Extraction error on /v1/media-proxy (MEDIA_URL_NOT_ALLOWED)
+ok
+test_media_proxy_returns_validated_webp_bytes_without_exposing_url_in_path (tests.backend.test_api.TestBackendAPI.test_media_proxy_returns_validated_webp_bytes_without_exposing_url_in_path) ... ok
+test_photo_comment_link_is_not_rewritten_as_video (tests.backend.test_api.TestBackendAPI.test_photo_comment_link_is_not_rewritten_as_video) ... ok
+test_post_without_post_id_does_not_echo_resolved_query (tests.backend.test_api.TestBackendAPI.test_post_without_post_id_does_not_echo_resolved_query) ... 2026-11-20 02:41:54,166 [WARNING] stickerdrop.backend: Link resolution error on /v1/resolve-and-extract (VIDEO_ID_NOT_FOUND)
+ok
+test_public_client_cannot_override_provider (tests.backend.test_api.TestBackendAPI.test_public_client_cannot_override_provider) ... 2026-11-20 02:41:54,168 [WARNING] stickerdrop.backend: Validation error on /v1/resolve-and-extract (1 field error(s))
+ok
+test_resolve_and_extract_get_success (tests.backend.test_api.TestBackendAPI.test_resolve_and_extract_get_success) ... 2026-11-20 02:41:54,170 [INFO] stickerdrop.backend: Processing extraction for post=7708356144804236564 comment=7708394712596972308 provider=MockProvider
+2026-11-20 02:41:54,170 [INFO] stickerdrop.backend: Comment discovery completed: {'comment_pages': 1, 'reply_pages': 0, 'reply_parents_checked': 0, 'reply_parents_discovered': 0, 'complete': True, 'matched_in': 'top_level_or_reply_preview'}
+ok
+test_resolve_and_extract_post_success (tests.backend.test_api.TestBackendAPI.test_resolve_and_extract_post_success) ... 2026-11-20 02:41:54,172 [INFO] stickerdrop.backend: Processing extraction for post=7708356144804236564 comment=7708394712596972308 provider=MockProvider
+2026-11-20 02:41:54,173 [INFO] stickerdrop.backend: Comment discovery completed: {'comment_pages': 1, 'reply_pages': 0, 'reply_parents_checked': 0, 'reply_parents_discovered': 0, 'complete': True, 'matched_in': 'top_level_or_reply_preview'}
+ok
+test_resolve_link_endpoint_does_not_call_provider (tests.backend.test_api.TestBackendAPI.test_resolve_link_endpoint_does_not_call_provider) ... ok
+test_root_endpoint (tests.backend.test_api.TestBackendAPI.test_root_endpoint) ... ok
+test_validation_error_does_not_echo_submitted_signed_url (tests.backend.test_api.TestBackendAPI.test_validation_error_does_not_echo_submitted_signed_url) ... 2026-11-20 02:41:54,179 [WARNING] stickerdrop.backend: Validation error on /v1/resolve-and-extract (1 field error(s))
+ok
+test_video_link_without_comment_id_error (tests.backend.test_api.TestBackendAPI.test_video_link_without_comment_id_error) ... 2026-11-20 02:41:54,181 [WARNING] stickerdrop.backend: Link resolution error on /v1/resolve-and-extract (MISSING_COMMENT_ID)
+ok
+test_adapter_integrates_with_discovery_and_parses_exact_sticker (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceAdapter.test_adapter_integrates_with_discovery_and_parses_exact_sticker) ... ok
+test_adapter_preserves_opaque_cursor_across_discovery_pages (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceAdapter.test_adapter_preserves_opaque_cursor_across_discovery_pages) ... ok
+test_comments_request_uses_bearer_auth_and_normalizes_page (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceAdapter.test_comments_request_uses_bearer_auth_and_normalizes_page) ... ok
+test_http_error_does_not_expose_upstream_body (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceAdapter.test_http_error_does_not_expose_upstream_body) ... ok
+test_malformed_json_is_rejected (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceAdapter.test_malformed_json_is_rejected) ... ok
+test_non_json_content_type_is_rejected (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceAdapter.test_non_json_content_type_is_rejected) ... ok
+test_oversized_body_is_rejected_even_without_content_length (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceAdapter.test_oversized_body_is_rejected_even_without_content_length) ... ok
+test_rate_limit_has_safe_error_code (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceAdapter.test_rate_limit_has_safe_error_code) ... ok
+test_redirect_is_rejected_without_following (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceAdapter.test_redirect_is_rejected_without_following) ... ok
+test_replies_request_uses_exact_parent_id_and_normalizes (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceAdapter.test_replies_request_uses_exact_parent_id_and_normalizes) ... ok
+test_timeout_is_reported_without_request_url (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceAdapter.test_timeout_is_reported_without_request_url) ... ok
+test_unauthorized_source_response_raises_auth_error_without_body (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceAdapter.test_unauthorized_source_response_raises_auth_error_without_body) ... ok
+test_unknown_page_shape_is_not_silently_treated_as_empty (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceAdapter.test_unknown_page_shape_is_not_silently_treated_as_empty) ... ok
+test_api_key_is_required (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceConfiguration.test_api_key_is_required) ... ok
+test_configuration_status_fails_closed_without_credentials (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceConfiguration.test_configuration_status_fails_closed_without_credentials) ... ok
+test_credentials_query_fragment_and_path_traversal_are_rejected (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceConfiguration.test_credentials_query_fragment_and_path_traversal_are_rejected) ... ok
+test_explicit_factory_selection_activates_authorized_source_adapter (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceConfiguration.test_explicit_factory_selection_activates_authorized_source_adapter) ... ok
+test_factory_does_not_enable_adapter_implicitly (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceConfiguration.test_factory_does_not_enable_adapter_implicitly) ... ok
+test_localhost_http_is_allowed_only_outside_production (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceConfiguration.test_localhost_http_is_allowed_only_outside_production) ... ok
+test_production_requires_https (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceConfiguration.test_production_requires_https) ... ok
+test_response_and_timeout_limits_are_bounded (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceConfiguration.test_response_and_timeout_limits_are_bounded) ... ok
+test_status_is_safe_and_does_not_show_key_or_url (tests.backend.test_authorized_source_adapter.TestAuthorizedSourceConfiguration.test_status_is_safe_and_does_not_show_key_or_url) ... ok
+test_follows_top_level_pagination_past_old_five_page_limit (tests.backend.test_comment_discovery.TestCommentDiscoveryEngine.test_follows_top_level_pagination_past_old_five_page_limit) ... ok
+test_prioritizes_parent_with_target_author_preview (tests.backend.test_comment_discovery.TestCommentDiscoveryEngine.test_prioritizes_parent_with_target_author_preview) ... ok
+test_repeated_cursor_is_reported_as_incomplete_not_not_found (tests.backend.test_comment_discovery.TestCommentDiscoveryEngine.test_repeated_cursor_is_reported_as_incomplete_not_not_found) ... ok
+test_reply_source_error_marks_search_incomplete (tests.backend.test_comment_discovery.TestCommentDiscoveryEngine.test_reply_source_error_marks_search_incomplete) ... ok
+test_reports_incomplete_when_comment_page_budget_is_reached (tests.backend.test_comment_discovery.TestCommentDiscoveryEngine.test_reports_incomplete_when_comment_page_budget_is_reached) ... ok
+test_searches_reply_parent_beyond_first_four_and_paginates_replies (tests.backend.test_comment_discovery.TestCommentDiscoveryEngine.test_searches_reply_parent_beyond_first_four_and_paginates_replies) ... ok
+test_animated_type_without_animated_url_is_not_mislabeled (tests.backend.test_extractor_adapter.TestScrapeCreatorsAdapter.test_animated_type_without_animated_url_is_not_mislabeled) ... ok
+test_provider_defaults_to_disabled_even_when_paid_key_exists (tests.backend.test_extractor_adapter.TestScrapeCreatorsAdapter.test_provider_defaults_to_disabled_even_when_paid_key_exists) ... ok
+test_scrapecreators_comment_page_is_normalized_before_discovery (tests.backend.test_extractor_adapter.TestScrapeCreatorsAdapter.test_scrapecreators_comment_page_is_normalized_before_discovery) ... ok
+test_scrapesocial_reply_page_is_normalized_before_discovery (tests.backend.test_extractor_adapter.TestScrapeCreatorsAdapter.test_scrapesocial_reply_page_is_normalized_before_discovery) ... ok
+test_sticker_without_any_media_url_is_rejected (tests.backend.test_extractor_adapter.TestScrapeCreatorsAdapter.test_sticker_without_any_media_url_is_rejected) ... ok
+test_upstream_error_body_is_not_exposed_in_exception (tests.backend.test_extractor_adapter.TestScrapeCreatorsAdapter.test_upstream_error_body_is_not_exposed_in_exception) ... ok
+test_backend_http_not_allowed_without_localhost_flag (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_backend_http_not_allowed_without_localhost_flag) ... ok
+test_backend_url_with_credentials_is_rejected (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_backend_url_with_credentials_is_rejected) ... ok
+test_disabled_provider_is_rejected_before_extraction_call (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_disabled_provider_is_rejected_before_extraction_call) ... ok
+test_disallowed_media_host_is_rejected_before_proxy_call (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_disallowed_media_host_is_rejected_before_proxy_call) ... ok
+test_exact_comment_mismatch_is_rejected (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_exact_comment_mismatch_is_rejected) ... ok
+test_exact_post_mismatch_is_rejected (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_exact_post_mismatch_is_rejected) ... ok
+test_external_credit_provider_configuration_is_rejected (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_external_credit_provider_configuration_is_rejected) ... ok
+test_extracted_comment_id_mismatch_is_rejected (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_extracted_comment_id_mismatch_is_rejected) ... ok
+test_extraction_provider_mismatch_is_rejected (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_extraction_provider_mismatch_is_rejected) ... ok
+test_full_authorized_source_flow_qualifies_and_redacts_signed_url (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_full_authorized_source_flow_qualifies_and_redacts_signed_url) ... ok
+test_hash_mismatch_fails_golden_gate (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_hash_mismatch_fails_golden_gate) ... ok
+test_invalid_media_bytes_are_rejected (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_invalid_media_bytes_are_rejected) ... ok
+test_localhost_http_can_be_explicitly_enabled_for_development (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_localhost_http_can_be_explicitly_enabled_for_development) ... ok
+test_media_proxy_non_200_is_rejected (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_media_proxy_non_200_is_rejected) ... ok
+test_paid_provider_is_rejected_before_extraction_call (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_paid_provider_is_rejected_before_extraction_call) ... ok
+test_source_not_ready_is_rejected (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_source_not_ready_is_rejected) ... ok
+test_wrong_billing_model_is_rejected (tests.backend.test_live_source_acceptance.TestLiveSourceAcceptance.test_wrong_billing_model_is_rejected) ... ok
+test_concurrency_guard_rejects_excess_upstream_fetches (tests.backend.test_media_gateway.TestMediaGateway.test_concurrency_guard_rejects_excess_upstream_fetches) ... ok
+test_enforces_content_length_limit (tests.backend.test_media_gateway.TestMediaGateway.test_enforces_content_length_limit) ... ok
+test_fetches_and_validates_webp_from_allowed_host (tests.backend.test_media_gateway.TestMediaGateway.test_fetches_and_validates_webp_from_allowed_host) ... ok
+test_process_rate_guard_rejects_request_after_configured_window_budget (tests.backend.test_media_gateway.TestMediaGateway.test_process_rate_guard_rejects_request_after_configured_window_budget) ... ok
+test_redirect_destination_is_revalidated (tests.backend.test_media_gateway.TestMediaGateway.test_redirect_destination_is_revalidated) ... ok
+test_rejects_general_tiktok_web_host_not_cdn_allowlist (tests.backend.test_media_gateway.TestMediaGateway.test_rejects_general_tiktok_web_host_not_cdn_allowlist) ... ok
+test_rejects_http_scheme_and_ip_literal (tests.backend.test_media_gateway.TestMediaGateway.test_rejects_http_scheme_and_ip_literal) ... ok
+test_rejects_invalid_configured_size_ceiling (tests.backend.test_media_gateway.TestMediaGateway.test_rejects_invalid_configured_size_ceiling) ... ok
+test_rejects_invalid_webp_binary (tests.backend.test_media_gateway.TestMediaGateway.test_rejects_invalid_webp_binary) ... ok
+test_rejects_unapproved_host_without_network_request (tests.backend.test_media_gateway.TestMediaGateway.test_rejects_unapproved_host_without_network_request) ... ok
+test_rejects_unsafe_gateway_limits (tests.backend.test_media_gateway.TestMediaGateway.test_rejects_unsafe_gateway_limits) ... ok
+test_repeated_fetch_uses_bounded_process_cache (tests.backend.test_media_gateway.TestMediaGateway.test_repeated_fetch_uses_bounded_process_cache) ... ok
+test_cursor_without_boolean_indicates_more_pages (tests.backend.test_provider_normalization.TestProviderNormalization.test_cursor_without_boolean_indicates_more_pages) ... ok
+test_empty_collection_is_a_valid_terminal_page (tests.backend.test_provider_normalization.TestProviderNormalization.test_empty_collection_is_a_valid_terminal_page) ... ok
+test_malformed_comment_collection_is_rejected (tests.backend.test_provider_normalization.TestProviderNormalization.test_malformed_comment_collection_is_rejected) ... ok
+test_non_object_comment_is_rejected (tests.backend.test_provider_normalization.TestProviderNormalization.test_non_object_comment_is_rejected) ... ok
+test_normalizes_comment_list_alias_and_string_boolean (tests.backend.test_provider_normalization.TestProviderNormalization.test_normalizes_comment_list_alias_and_string_boolean) ... ok
+test_normalizes_nested_research_style_page (tests.backend.test_provider_normalization.TestProviderNormalization.test_normalizes_nested_research_style_page) ... ok
+test_provider_error_envelope_is_not_reported_as_empty_comments (tests.backend.test_provider_normalization.TestProviderNormalization.test_provider_error_envelope_is_not_reported_as_empty_comments) ... ok
+test_unknown_payload_does_not_become_false_empty_page (tests.backend.test_provider_normalization.TestProviderNormalization.test_unknown_payload_does_not_become_false_empty_page) ... ok
+test_created_bundle_omits_secrets_and_local_artifacts (tests.backend.test_release_bundle.TestSourceBundleSafety.test_created_bundle_omits_secrets_and_local_artifacts) ... ok
+test_excludes_environment_file_but_keeps_example (tests.backend.test_release_bundle.TestSourceBundleSafety.test_excludes_environment_file_but_keeps_example) ... ok
+test_excludes_git_and_virtual_environment (tests.backend.test_release_bundle.TestSourceBundleSafety.test_excludes_git_and_virtual_environment) ... ok
+test_excludes_signing_material_and_local_databases (tests.backend.test_release_bundle.TestSourceBundleSafety.test_excludes_signing_material_and_local_databases) ... ok
+test_keeps_source_code_and_required_project_metadata (tests.backend.test_release_bundle.TestSourceBundleSafety.test_keeps_source_code_and_required_project_metadata) ... ok
+test_animated_url_is_preferred_when_present (tests.backend.test_source_qualification.TestSourceQualification.test_animated_url_is_preferred_when_present) ... ok
+test_exact_comment_id_is_required (tests.backend.test_source_qualification.TestSourceQualification.test_exact_comment_id_is_required) ... ok
+test_exact_nested_reply_is_found (tests.backend.test_source_qualification.TestSourceQualification.test_exact_nested_reply_is_found) ... ok
+test_exact_top_level_comment_with_real_media_qualifies (tests.backend.test_source_qualification.TestSourceQualification.test_exact_top_level_comment_with_real_media_qualifies) ... ok
+test_expected_sha256_mismatch_is_rejected (tests.backend.test_source_qualification.TestSourceQualification.test_expected_sha256_mismatch_is_rejected) ... ok
+test_media_without_structural_webp_is_rejected (tests.backend.test_source_qualification.TestSourceQualification.test_media_without_structural_webp_is_rejected) ... ok
+test_missing_media_bytes_is_only_metadata_qualified (tests.backend.test_source_qualification.TestSourceQualification.test_missing_media_bytes_is_only_metadata_qualified) ... ok
+test_plain_sticker_label_without_media_struct_is_rejected (tests.backend.test_source_qualification.TestSourceQualification.test_plain_sticker_label_without_media_struct_is_rejected) ... ok
+test_unapproved_host_is_rejected (tests.backend.test_source_qualification.TestSourceQualification.test_unapproved_host_is_rejected) ... ok
+test_extract_non_existent_comment (tests.extraction.test_extraction.TestStickerExtraction.test_extract_non_existent_comment) ... ok
+test_extract_target_comment_with_mock_download (tests.extraction.test_extraction.TestStickerExtraction.test_extract_target_comment_with_mock_download) ... ok
+test_parse_comment_with_sticker (tests.extraction.test_extraction.TestStickerExtraction.test_parse_comment_with_sticker) ... ok
+test_parse_text_only_comment (tests.extraction.test_extraction.TestStickerExtraction.test_parse_text_only_comment) ... ok
+test_sticker_type_hint_without_animated_asset_is_static (tests.extraction.test_extraction.TestStickerExtraction.test_sticker_type_hint_without_animated_asset_is_static) ... ok
+test_all_user_supplied_links_resolve_to_expected_ids_without_provider (tests.link_resolver.test_resolver.TestTikTokLinkResolver.test_all_user_supplied_links_resolve_to_expected_ids_without_provider) ... ok
+test_extract_url_empty_raises (tests.link_resolver.test_resolver.TestTikTokLinkResolver.test_extract_url_empty_raises) ... ok
+test_extract_url_from_text (tests.link_resolver.test_resolver.TestTikTokLinkResolver.test_extract_url_from_text) ... ok
+test_missing_video_id_raises (tests.link_resolver.test_resolver.TestTikTokLinkResolver.test_missing_video_id_raises) ... ok
+test_parse_alternative_comment_param (tests.link_resolver.test_resolver.TestTikTokLinkResolver.test_parse_alternative_comment_param) ... ok
+test_parse_canonical_comment_url (tests.link_resolver.test_resolver.TestTikTokLinkResolver.test_parse_canonical_comment_url) ... ok
+test_parse_canonical_video_url_without_comment (tests.link_resolver.test_resolver.TestTikTokLinkResolver.test_parse_canonical_video_url_without_comment) ... ok
+test_parse_cid_param (tests.link_resolver.test_resolver.TestTikTokLinkResolver.test_parse_cid_param) ... ok
+test_parse_photo_comment_url_preserves_photo_route (tests.link_resolver.test_resolver.TestTikTokLinkResolver.test_parse_photo_comment_url_preserves_photo_route) ... ok
+test_parse_photo_id_from_share_item_id (tests.link_resolver.test_resolver.TestTikTokLinkResolver.test_parse_photo_id_from_share_item_id) ... ok
+test_invalid_header_non_webp (tests.media.test_media_validator.TestMediaValidator.test_invalid_header_non_webp) ... ok
+test_non_512_dimension_compliance_failure (tests.media.test_media_validator.TestMediaValidator.test_non_512_dimension_compliance_failure) ... ok
+test_oversized_animated_webp_compliance_failure (tests.media.test_media_validator.TestMediaValidator.test_oversized_animated_webp_compliance_failure) ... ok
+test_parse_valid_animated_webp_512 (tests.media.test_media_validator.TestMediaValidator.test_parse_valid_animated_webp_512) ... ok
+test_parse_valid_static_webp_512 (tests.media.test_media_validator.TestMediaValidator.test_parse_valid_static_webp_512) ... ok
+test_reject_animation_flag_without_anim_frames (tests.media.test_media_validator.TestMediaValidator.test_reject_animation_flag_without_anim_frames) ... ok
+test_reject_riff_size_mismatch (tests.media.test_media_validator.TestMediaValidator.test_reject_riff_size_mismatch) ... ok
+test_static_binary_overrides_animation_metadata_hints (tests.media.test_media_validator.TestMediaValidator.test_static_binary_overrides_animation_metadata_hints) ... ok
+test_comment_deduplication (tests.storage.test_storage.TestStickerRepository.test_comment_deduplication) ... ok
+test_library_integrity_verification (tests.storage.test_storage.TestStickerRepository.test_library_integrity_verification) ... ok
+test_media_hash_deduplication (tests.storage.test_storage.TestStickerRepository.test_media_hash_deduplication) ... ok
+test_persistence_across_connection_restarts (tests.storage.test_storage.TestStickerRepository.test_persistence_across_connection_restarts) ... ok
+test_save_and_retrieve_sticker (tests.storage.test_storage.TestStickerRepository.test_save_and_retrieve_sticker) ... ok
+test_mixed_animated_and_static_pack_rejected (tests.whatsapp_export.test_whatsapp_export.TestWhatsAppExport.test_mixed_animated_and_static_pack_rejected) ... ok
+test_pack_generation_and_validation (tests.whatsapp_export.test_whatsapp_export.TestWhatsAppExport.test_pack_generation_and_validation) ... ok
+test_partitioning_logic (tests.whatsapp_export.test_whatsapp_export.TestWhatsAppExport.test_partitioning_logic) ... ok
+
+----------------------------------------------------------------------
+Ran 137 tests in 0.535s
+
+OK
+======================================================================
+STICKERDROP SYSTEM TEST SUITE
+======================================================================
+
+======================================================================
+Tests run: 137
+Failures: 0
+Errors: 0
+======================================================================
+ALL TESTS PASSED SUCCESSFULLY.

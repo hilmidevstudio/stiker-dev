@@ -1,0 +1,31 @@
+{
+  "patch": 9,
+  "name": "Live Source Acceptance Gate",
+  "scope": "Safe end-to-end acceptance through the operator-managed authorized_source backend adapter",
+  "files": [
+    "scripts/live_source_acceptance.py",
+    "scripts/live_extraction_test.py",
+    "scripts/test_server_live.py",
+    "tests/backend/test_live_source_acceptance.py",
+    "docs/20-live-source-acceptance.md",
+    "PATCH_9_INSTALL.md",
+    "PATCH_9_TEST_LOG.txt",
+    "README.md"
+  ],
+  "verification": {
+    "python_compileall": "passed",
+    "python_tests": 137,
+    "python_failures": 0,
+    "python_errors": 0,
+    "runtime_warning_as_error": true,
+    "local_backend_smoke_test": "passed",
+    "live_tiktok_extraction": "not_performed"
+  },
+  "safety": {
+    "paid_provider_direct_calls": false,
+    "legacy_live_harness_direct_paid_calls": "retired",
+    "signed_media_url_in_report": false,
+    "default_extraction_provider_change": false,
+    "live_acceptance_requires_authorized_source": true
+  }
+}
